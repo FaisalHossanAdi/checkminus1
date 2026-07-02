@@ -1,5 +1,39 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShieldCheck, Plus, Search, Trash2, Edit3, Check, X, LogOut, Upload, MessageSquare, TrendingDown, Info, Coins, ChevronLeft, ChevronRight, Activity, HeartCrack, Clock, ArrowRight, Wallet, AlertTriangle, Globe } from "lucide-react";
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  ShieldCheck, 
+  Plus, 
+  Search, 
+  Trash2, 
+  Edit3, 
+  Check, 
+  X, 
+  LogOut, 
+  Upload, 
+  MessageSquare, 
+  TrendingDown, 
+  Info, 
+  Coins, 
+  ChevronLeft, 
+  ChevronRight, 
+  Activity, 
+  HeartCrack, 
+  Clock, 
+  ArrowRight, 
+  Wallet, 
+  AlertTriangle, 
+  Globe, 
+  ShoppingCart, 
+  User, 
+  ShoppingBag, 
+  Bell, 
+  Lock, 
+  MapPin, 
+  Phone, 
+  CreditCard, 
+  CheckCircle, 
+  Sparkles 
+} from "lucide-react";
 
 // Word First Character Caps Lock Helper (Title Case)
 const toTitleCase = (str) => {
