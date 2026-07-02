@@ -10,31 +10,32 @@ import {
   LogOut, 
   Upload, 
   MessageSquare, 
-  TrendingDown, 
-  Info, 
-  Coins, 
-  ChevronLeft, 
-  ChevronRight, 
-  Activity, 
-  HeartCrack, 
-  Clock, 
-  ArrowRight, 
-  Wallet, 
-  AlertTriangle, 
-  Globe, 
-  ShoppingCart, 
-  User, 
-  ShoppingBag, 
-  Bell, 
-  Lock, 
-  MapPin, 
-  Phone, 
-  CreditCard, 
-  CheckCircle, 
-  Sparkles 
-} from "lucide-react";
+  TrendingDown,
+  Info,
+  Coins,
+  ChevronLeft,
+  ChevronRight,
+  Activity,
+  HeartCrack,
+  Clock,
+  Wallet,
+  AlertTriangle,
+  Globe,
+  ShoppingCart,
+  User,
+  ShoppingBag,
+  Bell,
+  Lock,
+  MapPin,
+  Phone,
+  CreditCard,
+  CheckCircle,
+  ArrowRight,
+  Sparkles,
+  FolderPlus
+} from 'lucide-react';
 
-// Word First Character Caps Lock Helper (Title Case)
+// Title Case Helper
 const toTitleCase = (str) => {
   if (!str) return '';
   return str
@@ -63,11 +64,13 @@ const initialProducts = [
   {
     id: 'prod-1',
     brandId: 'brand-1',
+    categoryId: 'cat-1',
     modelName: 'Galaxy S24 Ultra',
     faultScore: 48,
     timeline: [15, 25, 48, 65, 80],
     description: 'Significant camera shutter lag and screen vividness issues reported in early batches.',
     affiliateLink: 'https://amazon.com/dp/S24Ultra-affiliate-id',
+    imageUrl: 'https://images.unsplash.com/photo-1610792516307-ea5acd9c3b00?w=400&auto=format&fit=crop&q=80',
     faults: [
       { id: 'f-1', text: 'Camera Shutter Lag In Low Light', votes: 142, approved: true },
       { id: 'f-2', text: 'Display Gradient Flickering', votes: 218, approved: true }
@@ -76,11 +79,13 @@ const initialProducts = [
   {
     id: 'prod-2',
     brandId: 'brand-3',
+    categoryId: 'cat-2',
     modelName: 'Cat VPN Pro',
     faultScore: 78,
     timeline: [10, 50, 78, 90, 100],
     description: 'Automatically disconnects after exactly 4 hours of usage, cutting off secure tunnel.',
     affiliateLink: 'https://nordvpn.com/partner-affiliate-id',
+    imageUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&auto=format&fit=crop&q=80',
     faults: [
       { id: 'f-3', text: 'Auto Disconnection After 4 Hours', votes: 540, approved: true }
     ]
@@ -88,18 +93,19 @@ const initialProducts = [
   {
     id: 'prod-3',
     brandId: 'brand-2',
+    categoryId: 'cat-3',
     modelName: 'MacBook Air M3',
     faultScore: 12,
     timeline: [2, 5, 8, 12, 18],
     description: 'Highly reliable performance, minor anodized finish wear around charging ports.',
     affiliateLink: 'https://amazon.com/dp/MacBookM3-affiliate-id',
+    imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&auto=format&fit=crop&q=80',
     faults: [
       { id: 'f-5', text: 'Midnight Color Chipping Off Easily', votes: 95, approved: true }
     ]
   }
 ];
 
-// E-commerce Store Mock Inventory
 const storeProducts = [
   { id: 'sp-1', name: 'Premium Shockproof Phone Case', price: 1200, pointsCost: 150, image: 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=300&auto=format&fit=crop&q=80' },
   { id: 'sp-2', name: 'High-Speed Type-C Braided Cable', price: 650, pointsCost: 80, image: 'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=300&auto=format&fit=crop&q=80' },
@@ -107,7 +113,6 @@ const storeProducts = [
   { id: 'sp-4', name: 'Universal Magnetic Car Mount', price: 1800, pointsCost: 200, image: 'https://images.unsplash.com/photo-1586105251261-72a756497a11?w=300&auto=format&fit=crop&q=80' },
 ];
 
-// Rich Mock Visitor Analytics for Admin Dashboard
 const analyticsData = {
   totalVisitors: 14850,
   countries: [
@@ -133,10 +138,9 @@ const analyticsData = {
 };
 
 export default function App() {
-  // Navigation: 'index' | 'store' | 'user-dashboard' | 'admin-dashboard' | 'thank-you'
   const [currentView, setCurrentView] = useState('index');
 
-  // Core App States (Synced with LocalStorage to prevent reset during prototyping)
+  // Core App States
   const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('c1_categories')) || initialCategories);
   const [brands, setBrands] = useState(() => JSON.parse(localStorage.getItem('c1_brands')) || initialBrands);
   const [products, setProducts] = useState(() => JSON.parse(localStorage.getItem('c1_products')) || initialProducts);
@@ -144,9 +148,9 @@ export default function App() {
   
   // Auth States
   const [isLoggedIn, setIsLoggedIn] = useState(() => JSON.parse(localStorage.getItem('c1_isLoggedIn')) || false);
-  const [userRole, setUserRole] = useState(() => localStorage.getItem('c1_userRole') || 'user'); // 'user' or 'admin'
+  const [userRole, setUserRole] = useState(() => localStorage.getItem('c1_userRole') || 'user'); 
   const [username, setUsername] = useState(() => localStorage.getItem('c1_username') || 'Guest Contributor');
-  const [userPoints, setUserPoints] = useState(() => parseInt(localStorage.getItem('c1_userPoints')) || 250); // Seeded with 250 points
+  const [userPoints, setUserPoints] = useState(() => parseInt(localStorage.getItem('c1_userPoints')) || 250); 
   const [notifications, setNotifications] = useState([
     { id: 1, text: 'Welcome to CheckMinus1! Earn points by indexing models.', unread: true },
     { id: 2, text: 'Admin approved your Samsung model submission. +10 Points earned!', unread: false }
@@ -159,36 +163,39 @@ export default function App() {
   const [countdown, setCountdown] = useState(10);
   const [lastOrderDetails, setLastOrderDetails] = useState(null);
 
-  // Search, Selection & UI States
+  // Search & Filter UI States
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedBrand, setSelectedBrand] = useState('all');
   const [activeProduct, setActiveProduct] = useState(null);
   
-  // Form Popups
+  // Form Popups Control
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [showBrandForm, setShowBrandForm] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
   const [showProblemForm, setShowProblemForm] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authTab, setAuthTab] = useState('login');
 
-  // Specific Form inputs
+  // Form input bindings
+  const [newCatName, setNewCatName] = useState('');
   const [brandName, setBrandName] = useState('');
+  const [brandTargetCat, setBrandTargetCat] = useState('');
   const [brandLogoPreview, setBrandLogoPreview] = useState('');
+  
   const [prodName, setProdName] = useState('');
   const [prodBrandId, setProdBrandId] = useState('');
+  const [prodCatId, setProdCatId] = useState('');
   const [prodDesc, setProdDesc] = useState('');
+  const [prodImagePreview, setProdImagePreview] = useState('');
+
   const [probProduct, setProbProduct] = useState('');
   const [probText, setProbText] = useState('Battery Degradation & Fast Draining');
   const [customProbText, setCustomProbText] = useState('');
 
-  // Password Reset simulation
   const [passForm, setPassForm] = useState({ current: '', newPass: '' });
-
-  // Status/Alert Banner
   const [alertBanner, setAlertBanner] = useState({ show: false, msg: '', type: 'success' });
 
-  // Inject CSS Keyframes once component mounts
   useEffect(() => {
     const styleId = 'checkminus1-styles';
     if (!document.getElementById(styleId)) {
@@ -210,7 +217,6 @@ export default function App() {
     }
   }, []);
 
-  // Synced Storage hooks
   useEffect(() => {
     localStorage.setItem('c1_categories', JSON.stringify(categories));
     localStorage.setItem('c1_brands', JSON.stringify(brands));
@@ -227,7 +233,6 @@ export default function App() {
     setTimeout(() => setAlertBanner({ show: false, msg: '', type: 'success' }), 4000);
   };
 
-  // Automated Count-down timer for Order Redirect
   useEffect(() => {
     let timer;
     if (currentView === 'thank-you' && countdown > 0) {
@@ -239,26 +244,17 @@ export default function App() {
     return () => clearInterval(timer);
   }, [currentView, countdown]);
 
-  // Auth Operations
   const handleAuthSubmit = (e) => {
     e.preventDefault();
-    if (authTab === 'login') {
-      setIsLoggedIn(true);
-      // Hardcoded login rules for demonstration/testing
-      if (checkoutForm.name.toLowerCase().includes('admin') || checkoutForm.address.toLowerCase().includes('admin')) {
-        setUserRole('admin');
-        setUsername('Root Administrator');
-        triggerAlert('Logged in securely as Admin.');
-      } else {
-        setUserRole('user');
-        setUsername('Rashedul Islam');
-        triggerAlert('Logged in successfully.');
-      }
+    setIsLoggedIn(true);
+    if (checkoutForm.name.toLowerCase().includes('admin')) {
+      setUserRole('admin');
+      setUsername('Root Administrator');
+      triggerAlert('Logged in securely as Admin.');
     } else {
-      setIsLoggedIn(true);
       setUserRole('user');
-      setUsername(toTitleCase(checkoutForm.name) || 'New Contributor');
-      triggerAlert('Registration Successful! Checked from ' + (checkoutForm.address || 'Bangladesh'));
+      setUsername(toTitleCase(checkoutForm.name) || 'Rashedul Islam');
+      triggerAlert('Logged in successfully.');
     }
     setShowAuthModal(false);
   };
@@ -271,7 +267,6 @@ export default function App() {
     triggerAlert('Logged out securely.');
   };
 
-  // E-commerce Cart Actions
   const addToCart = (product) => {
     const existing = cart.find(item => item.id === product.id);
     if (existing) {
@@ -286,10 +281,9 @@ export default function App() {
     setCart(cart.filter(item => item.id !== id));
   };
 
-  // Validate and Submit E-commerce Order
   const handleCheckout = (e) => {
     e.preventDefault();
-    const phoneRegex = /^01[3-9]\d{8}$/; // Bangladeshi standard 11 digits validation
+    const phoneRegex = /^01[3-9]\d{8}$/; 
 
     if (!checkoutForm.name.trim() || !checkoutForm.address.trim()) {
       triggerAlert('Please complete all delivery fields.', 'error');
@@ -301,7 +295,6 @@ export default function App() {
       return;
     }
 
-    // Calculate totals
     const pointsTotal = cart.reduce((sum, item) => sum + item.pointsCost, 0);
     const moneyTotal = cart.reduce((sum, item) => sum + item.price, 0);
 
@@ -321,7 +314,6 @@ export default function App() {
       phone: checkoutForm.phone
     });
 
-    // Success transition
     setCart([]);
     setIsCartOpen(false);
     setCountdown(10);
@@ -329,17 +321,32 @@ export default function App() {
     triggerAlert('Order received successfully!');
   };
 
-  // Dynamic Content Submission with Autocapitalization
+  // Add category handler
+  const handleCategoryUpload = (e) => {
+    e.preventDefault();
+    if (!newCatName.trim()) return;
+    const formatted = toTitleCase(newCatName);
+    const newCat = { id: `cat-${Date.now()}`, name: formatted };
+    setCategories([...categories, newCat]);
+    setNewCatName('');
+    setShowCategoryForm(false);
+    triggerAlert('New Category successfully added!');
+  };
+
+  // Add brand with category assignment handler
   const handleBrandUpload = (e) => {
     e.preventDefault();
-    if (!brandName.trim()) return;
+    if (!brandName.trim() || !brandTargetCat) {
+      triggerAlert('Please select brand name and category parent.', 'error');
+      return;
+    }
 
     const formattedName = toTitleCase(brandName);
-    const finalLogo = brandLogoPreview || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=120&auto=format&fit=crop&q=60';
+    const finalLogo = brandLogoPreview || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=120';
 
     const newBrand = {
       id: `brand-${Date.now()}`,
-      categoryId: 'cat-other', // Standard users fallback to "Other" category
+      categoryId: brandTargetCat, 
       name: formattedName,
       logoUrl: finalLogo,
       approved: userRole === 'admin' ? true : false
@@ -350,48 +357,54 @@ export default function App() {
       triggerAlert('Brand added and approved directly by Admin!');
     } else {
       setPendingBrands([...pendingBrands, newBrand]);
-      triggerAlert('Brand submitted for Admin review. Placed under "Other" category.');
+      triggerAlert('Brand submitted for Admin review.');
     }
 
     setBrandName('');
+    setBrandTargetCat('');
     setBrandLogoPreview('');
     setShowBrandForm(false);
   };
 
-  // Index new Model (+10 points)
+  // Index new model with Category and Custom Image Upload Support
   const handleProductUpload = (e) => {
     e.preventDefault();
-    if (!prodName.trim() || !prodBrandId) return;
+    if (!prodName.trim() || !prodBrandId || !prodCatId) {
+      triggerAlert('Please complete Brand, Category, and Model Name fields.', 'error');
+      return;
+    }
 
     const formattedModel = toTitleCase(prodName);
     const newProduct = {
       id: `prod-${Date.now()}`,
       brandId: prodBrandId,
+      categoryId: prodCatId, 
       modelName: formattedModel,
-      faultScore: 10, // Starting minimal fault score
+      faultScore: 10, 
       timeline: [5, 10, 15, 20, 25],
       description: prodDesc || 'No user-submitted description provided yet.',
       affiliateLink: 'https://amazon.com/s?k=' + encodeURIComponent(formattedModel),
+      imageUrl: prodImagePreview || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300', 
       faults: [{ id: `f-${Date.now()}`, text: 'Initial Index Active', votes: 1, approved: true }]
     };
 
     setProducts([...products, newProduct]);
-    setUserPoints(prev => prev + 10); // Reward 10 pts
+    setUserPoints(prev => prev + 10); 
     
-    // Auto add notification
     setNotifications([
       { id: Date.now(), text: `You successfully indexed ${formattedModel}! +10 Points rewarded.`, unread: true },
       ...notifications
     ]);
 
     setProdName('');
-    setProdDesc('');
     setProdBrandId('');
+    setProdCatId('');
+    setProdDesc('');
+    setProdImagePreview('');
     setShowProductForm(false);
     triggerAlert('Product indexed! +10 Points added to your wallet.');
   };
 
-  // Report observed bug / fault (Auto verification for existing)
   const handleProblemSubmission = (e) => {
     e.preventDefault();
     if (!probProduct) return;
@@ -399,10 +412,8 @@ export default function App() {
     const finalProblem = probText === 'Other' ? toTitleCase(customProbText) : probText;
     if (!finalProblem.trim()) return;
 
-    // Direct injection into existing product model
     const updatedProducts = products.map(p => {
       if (p.id === probProduct) {
-        // Check if exact fault exists
         const exists = p.faults.some(f => f.text.toLowerCase() === finalProblem.toLowerCase());
         let updatedFaults;
 
@@ -417,7 +428,7 @@ export default function App() {
         return {
           ...p,
           faults: updatedFaults,
-          faultScore: Math.min(100, p.faultScore + 3) // Increase fault score due to user report
+          faultScore: Math.min(100, p.faultScore + 3) 
         };
       }
       return p;
@@ -425,20 +436,17 @@ export default function App() {
 
     setProducts(updatedProducts);
     
-    // Auto update popup state if visible
     if (activeProduct && activeProduct.id === probProduct) {
-      const activeRef = updatedProducts.find(p => p.id === probProduct);
-      setActiveProduct(activeRef);
+      setActiveProduct(updatedProducts.find(p => p.id === probProduct));
     }
 
-    setUserPoints(prev => prev + 5); // Submit points award
+    setUserPoints(prev => prev + 5); 
     triggerAlert('Fault submitted and automatically upvoted! +5 Points.');
     setShowProblemForm(false);
     setProbProduct('');
     setCustomProbText('');
   };
 
-  // Upvote fault
   const upvoteFault = (prodId, faultId) => {
     const updated = products.map(p => {
       if (p.id === prodId) {
@@ -454,8 +462,7 @@ export default function App() {
     triggerAlert('I Face This Too (-1) vote registered.');
   };
 
-  // Simulated image upload converter
-  const handleImgUpload = (e) => {
+  const handleImgUpload = (e, target) => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 200 * 1024) {
@@ -463,22 +470,13 @@ export default function App() {
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => setBrandLogoPreview(reader.result);
+      reader.onloadend = () => target(reader.result);
       reader.readAsDataURL(file);
     }
   };
 
-  // Admin routing panel actions
-  const approveBrand = (pendingItem, catId, newCatName) => {
-    let finalCatId = catId;
-    if (newCatName && newCatName.trim()) {
-      const formatted = toTitleCase(newCatName);
-      const newCatObj = { id: `cat-${Date.now()}`, name: formatted };
-      setCategories([...categories, newCatObj]);
-      finalCatId = newCatObj.id;
-    }
-
-    const approvedItem = { ...pendingItem, categoryId: finalCatId, approved: true };
+  const approveBrand = (pendingItem, catId) => {
+    const approvedItem = { ...pendingItem, categoryId: catId, approved: true };
     setBrands([...brands, approvedItem]);
     setPendingBrands(pendingBrands.filter(b => b.id !== pendingItem.id));
     triggerAlert('Brand approved and indexed successfully.');
@@ -489,7 +487,6 @@ export default function App() {
     triggerAlert('Brand recommendation declined.', 'info');
   };
 
-  // Fuzzy search filters
   const fuzzyBrands = useMemo(() => {
     if (searchQuery.length < 2) return [];
     return brands.filter(b => b.approved && b.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -506,41 +503,27 @@ export default function App() {
 
   const filteredProductsList = useMemo(() => {
     return products.filter(p => {
-      const brand = brands.find(b => b.id === p.brandId);
-      if (!brand) return false;
-      const matchCat = selectedCategory === 'all' || brand.categoryId === selectedCategory;
+      const matchCat = selectedCategory === 'all' || p.categoryId === selectedCategory;
       const matchBrand = selectedBrand === 'all' || p.brandId === selectedBrand;
-      const matchQuery = p.modelName.toLowerCase().includes(searchQuery.toLowerCase()) || brand.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchQuery = p.modelName.toLowerCase().includes(searchQuery.toLowerCase());
       return matchCat && matchBrand && matchQuery;
     });
-  }, [products, brands, selectedCategory, selectedBrand, searchQuery]);
+  }, [products, selectedCategory, selectedBrand, searchQuery]);
 
-  // E-commerce alternatives recommender
   const suggestedAlternative = useMemo(() => {
     if (!activeProduct) return null;
-    const currentBrand = brands.find(b => b.id === activeProduct.brandId);
-    if (!currentBrand) return null;
-
-    // Filter products within same category that have better (lower) fault score
-    const matches = products.filter(p => {
-      if (p.id === activeProduct.id) return false;
-      const b = brands.find(brand => brand.id === p.brandId);
-      return b && b.categoryId === currentBrand.categoryId && p.faultScore < activeProduct.faultScore;
-    });
-
-    // Sort by lowest fault score
+    const matches = products.filter(p => p.id !== activeProduct.id && p.categoryId === activeProduct.categoryId && p.faultScore < activeProduct.faultScore);
     return matches.sort((a, b) => a.faultScore - b.faultScore)[0] || null;
-  }, [activeProduct, products, brands]);
+  }, [activeProduct, products]);
 
   return (
     <div className="min-h-screen bg-[#FAF9FC] text-slate-800 font-sans flex flex-col justify-between relative overflow-x-hidden">
       
-      {/* Visual Background Glower (Matching image_09a3d2.jpg) */}
+      {/* Background gradient design */}
       <div className="absolute top-0 inset-x-0 h-[600px] bg-gradient-to-b from-indigo-50/40 via-[#F5F2F7] to-transparent pointer-events-none -z-10" />
       <div className="absolute top-20 left-10 w-96 h-96 rounded-full bg-violet-100/50 blur-3xl pointer-events-none -z-10" />
       <div className="absolute top-40 right-10 w-96 h-96 rounded-full bg-rose-100/30 blur-3xl pointer-events-none -z-10" />
 
-      {/* Floating Alerts Container */}
       {alertBanner.show && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#1E202B] text-white px-5 py-3 rounded-2xl shadow-xl transition-all animate-bounce">
           <span className={`w-2.5 h-2.5 rounded-full ${alertBanner.type === 'error' ? 'bg-rose-500' : 'bg-emerald-400'}`}></span>
@@ -548,11 +531,10 @@ export default function App() {
         </div>
       )}
 
-      {/* Primary Header Navbar */}
+      {/* Header */}
       <header className="border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-40 px-4 py-3.5 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           
-          {/* Brand Identity Logos */}
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView('index')}>
             <div className="bg-[#F41B5E] text-white font-black text-xl w-10 h-10 rounded-xl flex items-center justify-center shadow-md shadow-rose-200">
               -1
@@ -565,7 +547,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Autocomplete Search Bar */}
           <div className="flex-1 max-w-md w-full relative">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
               <Search className="w-4 h-4" />
@@ -594,7 +575,6 @@ export default function App() {
             )}
           </div>
 
-          {/* Portal Controls */}
           <div className="flex items-center gap-3 flex-wrap">
             <button 
               onClick={() => setCurrentView('store')}
@@ -618,7 +598,6 @@ export default function App() {
               </button>
             )}
 
-            {/* Cart Controller */}
             <button 
               onClick={() => setIsCartOpen(true)}
               className="relative p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-700 transition-colors"
@@ -631,7 +610,6 @@ export default function App() {
               )}
             </button>
 
-            {/* Authorization Actions */}
             {isLoggedIn ? (
               <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-100">
                 <div className="w-7 h-7 rounded-lg bg-[#F41B5E]/10 text-[#F41B5E] font-bold flex items-center justify-center text-xs">
@@ -650,11 +628,10 @@ export default function App() {
               </button>
             )}
           </div>
-
         </div>
       </header>
 
-      {/* 10 Seconds Countdown Order Screen (Thank You View) */}
+      {/* Thank you Order countdown view */}
       {currentView === 'thank-you' && lastOrderDetails && (
         <div className="max-w-2xl mx-auto my-16 p-8 bg-white border border-slate-100 rounded-3xl shadow-2xl text-center animate-fadeIn">
           <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -663,7 +640,6 @@ export default function App() {
           <h2 className="text-3xl font-black text-slate-900 mb-2">Thank You For Your Order!</h2>
           <p className="text-sm text-slate-500 mb-6">Your order has been recorded successfully and is currently being processed.</p>
           
-          {/* Order Summary Metadata */}
           <div className="bg-[#FAF9FC] p-4 rounded-2xl border border-slate-100 text-left text-xs space-y-2 max-w-md mx-auto mb-8">
             <p className="font-extrabold text-slate-700 border-b pb-1.5 uppercase tracking-wider text-[10px]">Order Specifications</p>
             <div className="flex justify-between">
@@ -673,10 +649,6 @@ export default function App() {
             <div className="flex justify-between">
               <span className="text-slate-400 font-semibold">Phone Contact:</span>
               <span className="text-slate-800 font-bold">{lastOrderDetails.phone}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400 font-semibold">Paid Via:</span>
-              <span className="text-slate-800 font-bold">{lastOrderDetails.method}</span>
             </div>
             <div className="flex justify-between border-t pt-2 mt-2">
               <span className="text-slate-500 font-extrabold">Grand Total Paid:</span>
@@ -758,7 +730,7 @@ export default function App() {
             </div>
           </section>
 
-          {/* Index Work area */}
+          {/* Index Workspace area */}
           <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow">
             
             {/* Category selection bar */}
@@ -783,6 +755,16 @@ export default function App() {
                     {cat.name}
                   </button>
                 ))}
+                
+                {/* Dynamically Add Category Trigger (Admin Only) */}
+                {userRole === 'admin' && (
+                  <button
+                    onClick={() => setShowCategoryForm(true)}
+                    className="px-3.5 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-extrabold flex items-center gap-1 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                  >
+                    <FolderPlus className="w-3.5 h-3.5" /> Add Category
+                  </button>
+                )}
               </div>
 
               {/* Interaction triggers */}
@@ -907,6 +889,11 @@ export default function App() {
                                 </span>
                               </div>
                             </div>
+
+                            {/* Product main Image Layout */}
+                            {prod.imageUrl && (
+                              <img src={prod.imageUrl} alt={prod.modelName} className="w-full h-36 object-cover rounded-2xl mb-3 border border-slate-100" />
+                            )}
 
                             <h3 className="text-lg font-black text-slate-900 mb-1">{prod.modelName}</h3>
                             <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed font-semibold">{prod.description}</p>
@@ -1138,7 +1125,7 @@ export default function App() {
                       <button
                         onClick={() => {
                           const val = document.getElementById(`catSelect-${pb.id}`).value;
-                          approveBrand(pb, val, '');
+                          approveBrand(pb, val);
                         }}
                         className="bg-[#F41B5E] text-white font-bold text-xs px-3 py-1.5 rounded-lg"
                       >
@@ -1380,7 +1367,6 @@ export default function App() {
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-100 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative animate-fadeIn max-h-[90vh] overflow-y-auto">
             
-            {/* Modal header alignment brand logo on Right side */}
             <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-slate-50/50">
               <div>
                 <span className="text-[10px] uppercase tracking-wider text-slate-400 font-extrabold block mb-1">Product Insight Timeline</span>
@@ -1399,7 +1385,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Modal Body Contents */}
             <div className="p-6 space-y-6 text-left">
               <div className="flex flex-col sm:flex-row gap-4 bg-rose-50/30 p-4 rounded-2xl border border-rose-100">
                 <div className="bg-white p-3 rounded-xl text-center border shadow-sm shrink-0 w-full sm:w-auto">
@@ -1466,7 +1451,6 @@ export default function App() {
                       <span className="text-[10px] font-black text-emerald-500">Fault Score: only -{suggestedAlternative.faultScore}%</span>
                     </div>
                     
-                    {/* Simulated affiliate link redirection */}
                     <a
                       href={suggestedAlternative.affiliateLink}
                       target="_blank"
@@ -1495,12 +1479,53 @@ export default function App() {
         </div>
       )}
 
-      {/* Brand submission popup form with specific sizes limit descriptions */}
+      {/* --- ALL POPUP MODALS INJECTION SECTION --- */}
+
+      {/* 1. Category Form Popup */}
+      {showCategoryForm && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handleCategoryUpload} className="bg-white p-6 rounded-3xl w-full max-w-sm space-y-4 text-left shadow-2xl animate-fadeIn">
+            <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+              <FolderPlus className="w-5 h-5 text-emerald-500" /> Add New Global Category
+            </h3>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400 font-bold uppercase">Category Name</label>
+              <input 
+                type="text" 
+                value={newCatName} 
+                onChange={(e) => setNewCatName(e.target.value)} 
+                placeholder="e.g. Smart Watches, Graphics Cards" 
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
+                required 
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setShowCategoryForm(false)} className="bg-slate-100 px-4 py-2 rounded-xl text-xs font-bold">Cancel</button>
+              <button type="submit" className="bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold">Save Category</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* 2. Brand Form Popup with Category Selection mapping */}
       {showBrandForm && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleBrandUpload} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left">
+          <form onSubmit={handleBrandUpload} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left animate-fadeIn">
             <h3 className="text-lg font-black text-slate-900">Suggest New Brand Model</h3>
             
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400 font-bold uppercase block">Assign Target Category</label>
+              <select 
+                value={brandTargetCat} 
+                onChange={(e) => setBrandTargetCat(e.target.value)} 
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
+                required
+              >
+                <option value="">Select Category Parent</option>
+                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+
             <div className="space-y-1">
               <label className="text-xs text-slate-400 uppercase font-black block">Brand Name</label>
               <input
@@ -1513,20 +1538,18 @@ export default function App() {
               />
             </div>
 
-            {/* Brand upload guidance limits details block */}
             <div className="space-y-1.5">
               <label className="text-xs text-slate-400 uppercase font-black block">Brand Logo Image</label>
               <div className="bg-rose-50 border border-rose-100/50 p-3 rounded-xl text-[10px] text-slate-600 font-semibold space-y-1">
                 <p className="font-extrabold text-[#F41B5E]">📐 Layout Guidelines:</p>
-                <p>• Recommended Square aspect ratio: <strong className="text-slate-800">Fixed 150x150 Pixels</strong></p>
-                <p>• Size Constraint: Maximum allowed size <strong className="text-slate-800">200 KB</strong></p>
+                <p>• Square Aspect Ratio | Size Constraint: Max <strong className="text-slate-800">200 KB</strong></p>
               </div>
               
               <div className="flex items-center gap-3 mt-2">
                 <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-4 rounded-xl cursor-pointer flex flex-col items-center justify-center">
                   <Upload className="w-5 h-5 text-slate-400 mb-1" />
                   <span className="text-[10px] font-bold text-slate-500">Select Local File</span>
-                  <input type="file" accept="image/*" onChange={handleImgUpload} className="hidden" />
+                  <input type="file" accept="image/*" onChange={(e) => handleImgUpload(e, setBrandLogoPreview)} className="hidden" />
                 </label>
                 {brandLogoPreview ? (
                   <img src={brandLogoPreview} alt="Preview" className="w-16 h-16 rounded-xl object-cover border bg-slate-50" />
@@ -1544,10 +1567,10 @@ export default function App() {
         </div>
       )}
 
-      {/* Product submission popup form */}
+      {/* 3. Product Index Form with Category & Image Upload support */}
       {showProductForm && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleProductUpload} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left">
+          <form onSubmit={handleProductUpload} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left animate-fadeIn">
             <h3 className="text-lg font-black text-slate-900">Index New Product Model</h3>
             <p className="text-[10px] text-amber-600 font-bold leading-relaxed">
               Indexing a new, unlisted product will award you 🪙 10 points which you can spend on accessories in our store!
@@ -1555,23 +1578,42 @@ export default function App() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
+                <label className="text-[10px] text-slate-400 uppercase font-black">Parent Category</label>
+                <select 
+                  value={prodCatId} 
+                  onChange={(e) => setProdCatId(e.target.value)} 
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
+                  required
+                >
+                  <option value="">Select Category</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
                 <label className="text-[10px] text-slate-400 uppercase font-black">Parent Brand</label>
-                <select value={prodBrandId} onChange={(e) => setProdBrandId(e.target.value)} className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" required>
+                <select 
+                  value={prodBrandId} 
+                  onChange={(e) => setProdBrandId(e.target.value)} 
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
+                  required
+                >
                   <option value="">Select Brand</option>
                   {brands.filter(b => b.approved).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] text-slate-400 uppercase font-black">Model Name</label>
-                <input
-                  type="text"
-                  value={prodName}
-                  onChange={(e) => setProdName(e.target.value)}
-                  placeholder="e.g. Galaxy Fold 5"
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
-                  required
-                />
-              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400 uppercase font-black block">Model Name</label>
+              <input
+                type="text"
+                value={prodName}
+                onChange={(e) => setProdName(e.target.value)}
+                placeholder="e.g. Galaxy Fold 5"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                required
+              />
             </div>
 
             <div className="space-y-1">
@@ -1585,6 +1627,22 @@ export default function App() {
               />
             </div>
 
+            <div className="space-y-1.5">
+              <label className="text-xs text-slate-400 uppercase font-black block">Product Image Upload (Max 200KB)</label>
+              <div className="flex items-center gap-3 mt-1">
+                <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-3 rounded-xl cursor-pointer flex flex-col items-center justify-center">
+                  <Upload className="w-4 h-4 text-slate-400 mb-1" />
+                  <span className="text-[9px] font-bold text-slate-500">Pick Photo</span>
+                  <input type="file" accept="image/*" onChange={(e) => handleImgUpload(e, setProdImagePreview)} className="hidden" />
+                </label>
+                {prodImagePreview ? (
+                  <img src={prodImagePreview} alt="Product Preview" className="w-16 h-16 rounded-xl object-cover border bg-slate-50" />
+                ) : (
+                  <div className="w-16 h-16 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex items-center justify-center text-[9px] text-slate-400 font-bold">No Image</div>
+                )}
+              </div>
+            </div>
+
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={() => setShowProductForm(false)} className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold">Cancel</button>
               <button type="submit" className="bg-[#F41B5E] text-white px-4 py-2 rounded-xl text-xs font-bold">Index Model (+10 Pts)</button>
@@ -1593,10 +1651,10 @@ export default function App() {
         </div>
       )}
 
-      {/* Problem submission popup form */}
+      {/* 4. Problem submission popup form */}
       {showProblemForm && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleProblemSubmission} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left">
+          <form onSubmit={handleProblemSubmission} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left animate-fadeIn">
             <h3 className="text-lg font-black text-slate-900">Report Observed Product Bug</h3>
             
             <div className="space-y-1">
@@ -1640,10 +1698,10 @@ export default function App() {
         </div>
       )}
 
-      {/* Registration and Login modal popup */}
+      {/* 5. Registration and Login modal popup */}
       {showAuthModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl text-left">
+          <div className="bg-white border rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl text-left animate-fadeIn">
             <div className="flex border-b">
               <button onClick={() => setAuthTab('login')} className={`flex-1 py-4 text-center text-xs font-black uppercase tracking-wider ${authTab === 'login' ? 'border-b-2 border-[#F41B5E] text-[#F41B5E]' : 'text-slate-400'}`}>Login</button>
               <button onClick={() => setAuthTab('register')} className={`flex-1 py-4 text-center text-xs font-black uppercase tracking-wider ${authTab === 'register' ? 'border-b-2 border-[#F41B5E] text-[#F41B5E]' : 'text-slate-400'}`}>Register</button>
@@ -1709,14 +1767,14 @@ export default function App() {
                     />
                   </div>
                   <div className="space-y-1">
-                      <label className="text-xs text-slate-400 font-bold uppercase">Password</label>
-                      <input
-                        type="password"
-                        placeholder="••••••••"
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
-                        required
-                      />
-                    </div>
+                    <label className="text-xs text-slate-400 font-bold uppercase">Password</label>
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                      required
+                    />
+                  </div>
                 </>
               )}
 
@@ -1778,13 +1836,14 @@ export default function App() {
             <h3 className="text-xs uppercase tracking-widest text-white font-black">Connect With Us</h3>
             <p className="text-xs text-slate-400 font-semibold">Join developers and consumer safety advocates globally.</p>
             <div className="flex gap-3 text-white">
-              <a href="#" className="p-2 rounded-lg bg-slate-800 hover:bg-[#F41B5E] transition-colors"><X className="w-4 h-4" /></a>
               <a href="#" className="p-2 rounded-lg bg-slate-800 hover:bg-[#F41B5E] transition-colors">
-  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-  </svg>
-</a>
-              <a href="#" className="p-2 rounded-lg bg-slate-800 hover:bg-[#F41B5E] transition-colors"><Globe className="w-4 h-4" /></a>
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+              </a>
+              <a href="#" className="p-2 rounded-lg bg-slate-800 hover:bg-[#F41B5E] transition-colors">
+                <Globe className="w-4 h-4" />
+              </a>
             </div>
           </div>
 
