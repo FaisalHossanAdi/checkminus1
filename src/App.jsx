@@ -1,20 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
+/* STREAMING_CHUNK: Importing core Icons from Lucide React */
 import { 
   ShieldCheck, 
   Plus, 
   Search, 
   Trash2, 
-  Edit3, 
-  Check, 
   X, 
   LogOut, 
   Upload, 
   MessageSquare, 
-  TrendingDown,
-  Info,
   Coins,
-  ChevronLeft,
-  ChevronRight,
   Activity,
   HeartCrack,
   Clock,
@@ -26,16 +21,13 @@ import {
   ShoppingBag,
   Bell,
   Lock,
-  MapPin,
-  Phone,
-  CreditCard,
   CheckCircle,
   ArrowRight,
   Sparkles,
   FolderPlus
 } from 'lucide-react';
 
-// Title Case Helper
+/* STREAMING_CHUNK: Defining Text Transformation Helpers */
 const toTitleCase = (str) => {
   if (!str) return '';
   return str
@@ -46,7 +38,61 @@ const toTitleCase = (str) => {
     .join(' ');
 };
 
-// Initial Mock Data
+/* STREAMING_CHUNK: Defining Core Utility functions including Auto-Image Resizer using Canvas */
+const resizeImage = (file, maxWidth, maxHeight, cropToSquare = false) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (cropToSquare) {
+          const size = Math.min(width, height);
+          canvas.width = maxWidth;
+          canvas.height = maxHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(
+            img,
+            (width - size) / 2,
+            (height - size) / 2,
+            size,
+            size,
+            0,
+            0,
+            maxWidth,
+            maxHeight
+          );
+        } else {
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+        }
+        resolve(canvas.toDataURL('image/jpeg', 0.75)); // Compress at 75% quality
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
+
+/* STREAMING_CHUNK: Initializing rich datasets for bootstrap rendering */
 const initialCategories = [
   { id: 'cat-1', name: 'Smartphones' },
   { id: 'cat-2', name: 'Software & VPN' },
@@ -106,7 +152,7 @@ const initialProducts = [
   }
 ];
 
-const storeProducts = [
+const initialStoreProducts = [
   { id: 'sp-1', name: 'Premium Shockproof Phone Case', price: 1200, pointsCost: 150, image: 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=300&auto=format&fit=crop&q=80' },
   { id: 'sp-2', name: 'High-Speed Type-C Braided Cable', price: 650, pointsCost: 80, image: 'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=300&auto=format&fit=crop&q=80' },
   { id: 'sp-3', name: 'Anti-Glare Matte Screen Protector', price: 450, pointsCost: 50, image: 'https://images.unsplash.com/photo-1581090700227-13617d58f35f?w=300&auto=format&fit=crop&q=80' },
@@ -137,13 +183,14 @@ const analyticsData = {
   gender: { male: 72, female: 26, other: 2 }
 };
 
+/* STREAMING_CHUNK: Declaring main React Application component & States hooks */
 export default function App() {
   const [currentView, setCurrentView] = useState('index');
 
-  // Core App States
   const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('c1_categories')) || initialCategories);
   const [brands, setBrands] = useState(() => JSON.parse(localStorage.getItem('c1_brands')) || initialBrands);
   const [products, setProducts] = useState(() => JSON.parse(localStorage.getItem('c1_products')) || initialProducts);
+  const [storeProducts, setStoreProducts] = useState(() => JSON.parse(localStorage.getItem('c1_store_products')) || initialStoreProducts);
   const [pendingBrands, setPendingBrands] = useState(() => JSON.parse(localStorage.getItem('c1_pendingBrands')) || []);
   
   // Auth States
@@ -177,17 +224,26 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authTab, setAuthTab] = useState('login');
 
-  // Form input bindings
+  // Input states with Image resize badges
   const [newCatName, setNewCatName] = useState('');
   const [brandName, setBrandName] = useState('');
   const [brandTargetCat, setBrandTargetCat] = useState('');
   const [brandLogoPreview, setBrandLogoPreview] = useState('');
+  const [isLogoOptimized, setLogoOptimized] = useState(false);
   
   const [prodName, setProdName] = useState('');
   const [prodBrandId, setProdBrandId] = useState('');
   const [prodCatId, setProdCatId] = useState('');
   const [prodDesc, setProdDesc] = useState('');
   const [prodImagePreview, setProdImagePreview] = useState('');
+  const [isProdImgOptimized, setProdImgOptimized] = useState(false);
+
+  // Admin New Store Product states
+  const [storeNewName, setStoreNewName] = useState('');
+  const [storeNewPrice, setStoreNewPrice] = useState('');
+  const [storeNewPoints, setStoreNewPoints] = useState('');
+  const [storeNewImage, setStoreNewImage] = useState('');
+  const [isStoreImgOptimized, setStoreImgOptimized] = useState(false);
 
   const [probProduct, setProbProduct] = useState('');
   const [probText, setProbText] = useState('Battery Degradation & Fast Draining');
@@ -196,6 +252,7 @@ export default function App() {
   const [passForm, setPassForm] = useState({ current: '', newPass: '' });
   const [alertBanner, setAlertBanner] = useState({ show: false, msg: '', type: 'success' });
 
+  /* STREAMING_CHUNK: Applying dynamic styling keyframe insertions */
   useEffect(() => {
     const styleId = 'checkminus1-styles';
     if (!document.getElementById(styleId)) {
@@ -217,32 +274,23 @@ export default function App() {
     }
   }, []);
 
+  /* STREAMING_CHUNK: LocalStorage Sync triggers */
   useEffect(() => {
     localStorage.setItem('c1_categories', JSON.stringify(categories));
     localStorage.setItem('c1_brands', JSON.stringify(brands));
     localStorage.setItem('c1_products', JSON.stringify(products));
+    localStorage.setItem('c1_store_products', JSON.stringify(storeProducts));
     localStorage.setItem('c1_pendingBrands', JSON.stringify(pendingBrands));
     localStorage.setItem('c1_isLoggedIn', JSON.stringify(isLoggedIn));
     localStorage.setItem('c1_userRole', userRole);
     localStorage.setItem('c1_username', username);
     localStorage.setItem('c1_userPoints', userPoints.toString());
-  }, [categories, brands, products, pendingBrands, isLoggedIn, userRole, username, userPoints]);
+  }, [categories, brands, products, storeProducts, pendingBrands, isLoggedIn, userRole, username, userPoints]);
 
   const triggerAlert = (msg, type = 'success') => {
     setAlertBanner({ show: true, msg, type });
     setTimeout(() => setAlertBanner({ show: false, msg: '', type: 'success' }), 4000);
   };
-
-  useEffect(() => {
-    let timer;
-    if (currentView === 'thank-you' && countdown > 0) {
-      timer = setInterval(() => setCountdown(prev => prev - 1), 1000);
-    } else if (currentView === 'thank-you' && countdown === 0) {
-      setCurrentView('index');
-      setCountdown(10);
-    }
-    return () => clearInterval(timer);
-  }, [currentView, countdown]);
 
   const handleAuthSubmit = (e) => {
     e.preventDefault();
@@ -321,7 +369,7 @@ export default function App() {
     triggerAlert('Order received successfully!');
   };
 
-  // Add category handler
+  /* STREAMING_CHUNK: Defining Administrative Category & Brand Management logic */
   const handleCategoryUpload = (e) => {
     e.preventDefault();
     if (!newCatName.trim()) return;
@@ -333,7 +381,6 @@ export default function App() {
     triggerAlert('New Category successfully added!');
   };
 
-  // Add brand with category assignment handler
   const handleBrandUpload = (e) => {
     e.preventDefault();
     if (!brandName.trim() || !brandTargetCat) {
@@ -363,10 +410,11 @@ export default function App() {
     setBrandName('');
     setBrandTargetCat('');
     setBrandLogoPreview('');
+    setLogoOptimized(false);
     setShowBrandForm(false);
   };
 
-  // Index new model with Category and Custom Image Upload Support
+  /* STREAMING_CHUNK: Defining Product & Store Admin management handlers */
   const handleProductUpload = (e) => {
     e.preventDefault();
     if (!prodName.trim() || !prodBrandId || !prodCatId) {
@@ -401,8 +449,38 @@ export default function App() {
     setProdCatId('');
     setProdDesc('');
     setProdImagePreview('');
+    setProdImgOptimized(false);
     setShowProductForm(false);
     triggerAlert('Product indexed! +10 Points added to your wallet.');
+  };
+
+  const handleAdminStoreProductUpload = (e) => {
+    e.preventDefault();
+    if (!storeNewName.trim() || !storeNewPrice || !storeNewPoints) {
+      triggerAlert('Please complete all Store Product fields.', 'error');
+      return;
+    }
+
+    const newStoreProduct = {
+      id: `sp-${Date.now()}`,
+      name: toTitleCase(storeNewName),
+      price: parseInt(storeNewPrice) || 0,
+      pointsCost: parseInt(storeNewPoints) || 0,
+      image: storeNewImage || 'https://images.unsplash.com/photo-1586105251261-72a756497a11?w=300'
+    };
+
+    setStoreProducts([...storeProducts, newStoreProduct]);
+    setStoreNewName('');
+    setStoreNewPrice('');
+    setStoreNewPoints('');
+    setStoreNewImage('');
+    setStoreImgOptimized(false);
+    triggerAlert('New Store reward product successfully added to live inventory!');
+  };
+
+  const deleteStoreProduct = (id) => {
+    setStoreProducts(storeProducts.filter(p => p.id !== id));
+    triggerAlert('Store product deleted from live database.');
   };
 
   const handleProblemSubmission = (e) => {
@@ -462,16 +540,18 @@ export default function App() {
     triggerAlert('I Face This Too (-1) vote registered.');
   };
 
-  const handleImgUpload = (e, target) => {
+  /* STREAMING_CHUNK: Image uploads mapping with integrated Canvas auto-resizer */
+  const handleUploadedImage = async (e, targetSetter, optimizedSetter, width, height, crop) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 200 * 1024) {
-        triggerAlert('Image upload limit: Max file size is 200 KB.', 'error');
-        return;
+      try {
+        const optimizedBase64 = await resizeImage(file, width, height, crop);
+        targetSetter(optimizedBase64);
+        optimizedSetter(true);
+        triggerAlert('Image uploaded & auto-resized to optimal quality!');
+      } catch (error) {
+        triggerAlert('Image resizing failed. Please try another file.', 'error');
       }
-      const reader = new FileReader();
-      reader.onloadend = () => target(reader.result);
-      reader.readAsDataURL(file);
     }
   };
 
@@ -487,6 +567,7 @@ export default function App() {
     triggerAlert('Brand recommendation declined.', 'info');
   };
 
+  /* STREAMING_CHUNK: Generating reactive derived states using useMemo hook */
   const fuzzyBrands = useMemo(() => {
     if (searchQuery.length < 2) return [];
     return brands.filter(b => b.approved && b.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -519,7 +600,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#FAF9FC] text-slate-800 font-sans flex flex-col justify-between relative overflow-x-hidden">
       
-      {/* Background gradient design */}
+      {/* Background gradients */}
       <div className="absolute top-0 inset-x-0 h-[600px] bg-gradient-to-b from-indigo-50/40 via-[#F5F2F7] to-transparent pointer-events-none -z-10" />
       <div className="absolute top-20 left-10 w-96 h-96 rounded-full bg-violet-100/50 blur-3xl pointer-events-none -z-10" />
       <div className="absolute top-40 right-10 w-96 h-96 rounded-full bg-rose-100/30 blur-3xl pointer-events-none -z-10" />
@@ -531,7 +612,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Header */}
+      {/* Primary Header */}
       <header className="border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-40 px-4 py-3.5 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           
@@ -631,7 +712,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Thank you Order countdown view */}
+      {/* Thank you Order view */}
       {currentView === 'thank-you' && lastOrderDetails && (
         <div className="max-w-2xl mx-auto my-16 p-8 bg-white border border-slate-100 rounded-3xl shadow-2xl text-center animate-fadeIn">
           <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -663,10 +744,9 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Container Views */}
+      {/* Index View */}
       {currentView === 'index' && (
         <>
-          {/* Sliding Carousel Section */}
           <section className="max-w-7xl mx-auto w-full px-4 pt-6 sm:px-6 lg:px-8">
             <div className="relative rounded-3xl overflow-hidden h-[240px] sm:h-[300px] shadow-lg border border-slate-100 group">
               <div 
@@ -687,7 +767,6 @@ export default function App() {
             </div>
           </section>
 
-          {/* Key Feature Cards section */}
           <section className="max-w-7xl mx-auto w-full px-4 pt-6 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3">
               <div className="p-2.5 rounded-xl bg-rose-50 text-[#F41B5E] shrink-0 h-10 w-10 flex items-center justify-center">
@@ -730,10 +809,7 @@ export default function App() {
             </div>
           </section>
 
-          {/* Index Workspace area */}
           <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow">
-            
-            {/* Category selection bar */}
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-150 pb-5 mb-8">
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -755,8 +831,6 @@ export default function App() {
                     {cat.name}
                   </button>
                 ))}
-                
-                {/* Dynamically Add Category Trigger (Admin Only) */}
                 {userRole === 'admin' && (
                   <button
                     onClick={() => setShowCategoryForm(true)}
@@ -767,7 +841,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Interaction triggers */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
@@ -792,10 +865,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Layout Grid: Left brand sidebar, right products view */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-              
-              {/* Brands Column */}
               <aside className="lg:col-span-1">
                 <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm lg:sticky lg:top-24">
                   <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
@@ -839,11 +909,8 @@ export default function App() {
                 </div>
               </aside>
 
-              {/* Products Directory view */}
               <section className="lg:col-span-3">
                 {filteredProductsList.length === 0 ? (
-                  
-                  // Product Not Available fallback page
                   <div className="bg-white border border-rose-100 rounded-3xl p-8 text-center max-w-xl mx-auto my-6 shadow-xl">
                     <AlertTriangle className="w-16 h-16 text-[#F41B5E] mx-auto mb-4 animate-bounce" />
                     <h3 className="text-2xl font-black text-slate-900 mb-2">"{searchQuery}" Not Yet Indexed</h3>
@@ -867,10 +934,7 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-
                 ) : (
-                  
-                  // Main list
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {filteredProductsList.map(prod => {
                       const brand = brands.find(b => b.id === prod.brandId);
@@ -890,7 +954,6 @@ export default function App() {
                               </div>
                             </div>
 
-                            {/* Product main Image Layout */}
                             {prod.imageUrl && (
                               <img src={prod.imageUrl} alt={prod.modelName} className="w-full h-36 object-cover rounded-2xl mb-3 border border-slate-100" />
                             )}
@@ -898,7 +961,6 @@ export default function App() {
                             <h3 className="text-lg font-black text-slate-900 mb-1">{prod.modelName}</h3>
                             <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed font-semibold">{prod.description}</p>
 
-                            {/* Specific Bugs list preview */}
                             <div className="space-y-1.5 mb-4">
                               {prod.faults.slice(0, 2).map(f => (
                                 <div key={f.id} className="flex justify-between items-center text-[11px] bg-slate-50/50 p-2 rounded-xl border border-slate-100">
@@ -927,16 +989,14 @@ export default function App() {
                   </div>
                 )}
               </section>
-
             </div>
-
           </main>
         </>
       )}
 
-      {/* Store Front Panel */}
+      {/* Store View */}
       {currentView === 'store' && (
-        <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow">
+        <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow animate-fadeIn">
           <div className="flex justify-between items-center mb-8 border-b pb-4">
             <div>
               <h2 className="text-2xl font-black text-slate-900">CheckMinus1 Reward Store</h2>
@@ -954,7 +1014,7 @@ export default function App() {
             {storeProducts.map(p => (
               <div key={p.id} className="bg-white border border-slate-150 rounded-3xl overflow-hidden shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
                 <img src={p.image} alt={p.name} className="w-full h-48 object-cover border-b" />
-                <div className="p-4 space-y-3">
+                <div className="p-4 space-y-3 text-left">
                   <h3 className="text-xs font-extrabold text-slate-800 line-clamp-1">{p.name}</h3>
                   <div className="flex justify-between items-center">
                     <div className="text-left">
@@ -979,7 +1039,7 @@ export default function App() {
         </main>
       )}
 
-      {/* Visitor User Personal Dashboard */}
+      {/* User Dashboard */}
       {currentView === 'user-dashboard' && (
         <main className="max-w-4xl mx-auto px-4 py-8 w-full flex-grow space-y-6">
           <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -998,12 +1058,8 @@ export default function App() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Action sidebar: activity list & Notifications */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
             <div className="md:col-span-2 space-y-6">
-              
-              {/* Notification hub */}
               <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-1.5">
                   <Bell className="w-4 h-4 text-[#F41B5E]" /> Live Notification Alerts
@@ -1017,7 +1073,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Point Redeem limits helper */}
               <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                   <Wallet className="w-4 h-4 text-amber-500" /> Reward Redemption Rules
@@ -1041,10 +1096,8 @@ export default function App() {
                   </button>
                 </div>
               </div>
-
             </div>
 
-            {/* Password Change Simulator */}
             <div className="md:col-span-1">
               <form onSubmit={(e) => { e.preventDefault(); triggerAlert('Security Password updated successfully.'); setPassForm({ current: '', newPass: '' }); }} className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
@@ -1077,28 +1130,146 @@ export default function App() {
                 </button>
               </form>
             </div>
-
           </div>
         </main>
       )}
 
-      {/* Admin Dashboard statistics panel (ONLY ACCESSIBLE BY AUTHENTICATED ADMINISTRATOR ROLE) */}
+      {/* Admin Dashboard */}
       {currentView === 'admin-dashboard' && userRole === 'admin' && (
-        <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow space-y-8 animate-fadeIn">
+        <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow space-y-8 animate-fadeIn text-left">
           
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b pb-4">
             <div>
               <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                <ShieldCheck className="w-6 h-6 text-[#F41B5E]" /> Admin Statistics & Moderation Control Panel
+                <ShieldCheck className="w-6 h-6 text-[#F41B5E]" /> Admin Control & Inventory Hub
               </h2>
-              <p className="text-xs text-slate-500">Restricted secure admin-only insights, pending moderation cues, and metrics graphs.</p>
+              <p className="text-xs text-slate-500">Add dynamic store products, configure image adjustments, and audit pending brand items.</p>
             </div>
-            <span className="bg-[#F41B5E]/10 text-[#F41B5E] border border-rose-200 px-3 py-1 rounded-full text-xs font-black tracking-widest uppercase">
+            <span className="bg-[#F41B5E]/10 text-[#F41B5E] border border-rose-200 px-3 py-1 rounded-full text-xs font-black tracking-widest uppercase self-start">
               Root Active
             </span>
           </div>
 
-          {/* Pending Approval Moderation Table Queue */}
+          {/* ⚡ NEW: Admin Store Product Management and Creator Hub */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-4">
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
+                <ShoppingBag className="w-4 h-4 text-[#F41B5E]" /> Create Store Product
+              </h3>
+              
+              <form onSubmit={handleAdminStoreProductUpload} className="space-y-3.5 text-xs">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 uppercase tracking-wide text-[10px]">Product Name</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Premium Screen Guard" 
+                    value={storeNewName}
+                    onChange={(e) => setStoreNewName(e.target.value)}
+                    className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500 uppercase tracking-wide text-[10px]">Price (৳ Taka)</label>
+                    <input 
+                      type="number" 
+                      placeholder="e.g. 500" 
+                      value={storeNewPrice}
+                      onChange={(e) => setStoreNewPrice(e.target.value)}
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl font-mono"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500 uppercase tracking-wide text-[10px]">Points cost (🪙)</label>
+                    <input 
+                      type="number" 
+                      placeholder="e.g. 70" 
+                      value={storeNewPoints}
+                      onChange={(e) => setStoreNewPoints(e.target.value)}
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl font-mono"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-500 uppercase tracking-wide text-[10px] block">Product Image Upload</label>
+                  
+                  {/* Creative size guidance & auto-adjust indicator */}
+                  <div className="bg-rose-50/50 border border-rose-100 p-3 rounded-2xl space-y-1">
+                    <span className="text-[10px] font-black text-[#F41B5E] uppercase block tracking-wider">📐 Image Guidelines</span>
+                    <p className="text-[9px] text-slate-500 leading-snug">
+                      • Recommended Size: <strong className="text-slate-700">300 x 300 Pixels (1:1 Square)</strong>.<br />
+                      • If any other size is uploaded, the system will <strong className="text-[#F41B5E]">automatically crop, resize & compress</strong> it to fit beautifully!
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-4 rounded-2xl cursor-pointer flex flex-col items-center justify-center transition-all">
+                      <Upload className="w-5 h-5 text-slate-400 mb-1" />
+                      <span className="text-[10px] font-bold text-slate-500">Pick Store Image</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => handleUploadedImage(e, setStoreNewImage, setStoreImgOptimized, 300, 300, true)} 
+                        className="hidden" 
+                      />
+                    </label>
+
+                    {storeNewImage ? (
+                      <div className="relative">
+                        <img src={storeNewImage} alt="" className="w-16 h-16 rounded-xl object-cover border" />
+                        {isStoreImgOptimized && (
+                          <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-white text-[8px] px-1 py-0.5 rounded-md font-bold">Resized</span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 border border-dashed rounded-xl bg-slate-50 flex items-center justify-center text-[9px] text-slate-400 font-bold">No Image</div>
+                    )}
+                  </div>
+                </div>
+
+                <button 
+                  type="submit" 
+                  className="w-full bg-[#F41B5E] hover:bg-rose-600 text-white font-black py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-1"
+                >
+                  <Plus className="w-4 h-4" /> Add Product to Store
+                </button>
+              </form>
+            </div>
+
+            {/* Current Store product dashboard manager list */}
+            <div className="lg:col-span-2 bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-4">
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider border-b pb-2">
+                Live Store Products ({storeProducts.length})
+              </h3>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[360px] overflow-y-auto pr-1.5">
+                {storeProducts.map(sp => (
+                  <div key={sp.id} className="p-3 bg-slate-50 border rounded-2xl flex items-center gap-3 justify-between">
+                    <div className="flex items-center gap-3">
+                      <img src={sp.image} alt="" className="w-12 h-12 rounded-xl object-cover border" />
+                      <div>
+                        <p className="text-xs font-black text-slate-800 truncate max-w-[140px]">{sp.name}</p>
+                        <p className="text-[10px] text-slate-400">৳{sp.price} | 🪙{sp.pointsCost} Pts</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => deleteStoreProduct(sp.id)}
+                      className="p-2 text-slate-400 hover:text-[#F41B5E] bg-white border rounded-xl hover:border-rose-200 transition-colors"
+                      title="Remove from Store"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
           <div className="bg-white border-2 border-dashed border-[#F41B5E]/30 p-6 rounded-3xl shadow-sm space-y-4">
             <h3 className="text-xs uppercase font-black text-slate-500 tracking-wider flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-[#F41B5E]" /> Pending Brand Approvals Queue ({pendingBrands.length})
@@ -1117,7 +1288,6 @@ export default function App() {
                       </div>
                     </div>
                     
-                    {/* Choose route and submit */}
                     <div className="flex items-center gap-2 mt-2">
                       <select id={`catSelect-${pb.id}`} className="bg-white border p-1.5 rounded-lg text-xs flex-1">
                         {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -1141,10 +1311,8 @@ export default function App() {
             )}
           </div>
 
-          {/* Real Statistics Charts visual mapping with pure Tailwind */}
+          {/* Statistics pure mapping */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Country District Demographic Mapping list */}
             <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Traffic Geographic Locations</h3>
               <div className="space-y-3.5">
@@ -1172,7 +1340,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Age demographies */}
             <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Age Group Distributions</h3>
               <div className="space-y-3.5">
@@ -1190,7 +1357,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Gender demographics & general performance overview chart */}
             <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Gender Breakdown Ratio</h3>
               <div className="flex items-center justify-around h-32 pt-2 text-center">
@@ -1215,16 +1381,14 @@ export default function App() {
                 </div>
               </div>
             </div>
-
           </div>
         </main>
       )}
 
-      {/* Slide-over Sliding Cart Sidepanel */}
+      {/* Cart Sliding Sidepanel */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-end">
           <div className="bg-white w-full max-w-md h-full shadow-2xl p-6 flex flex-col justify-between overflow-y-auto animate-slideIn">
-            
             <div>
               <div className="flex justify-between items-center border-b pb-4 mb-4">
                 <h3 className="text-lg font-black text-slate-900 flex items-center gap-1.5">
@@ -1243,9 +1407,9 @@ export default function App() {
               ) : (
                 <div className="space-y-4">
                   {cart.map(item => (
-                    <div key={item.id} className="flex gap-3 items-center border-b pb-3 border-slate-100">
+                    <div key={item.id} className="flex gap-3 items-center border-b pb-3 border-slate-100 text-left">
                       <img src={item.image} alt="" className="w-12 h-12 rounded-xl object-cover border" />
-                      <div className="flex-1 text-left min-w-0">
+                      <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-slate-800 truncate leading-snug">{item.name}</p>
                         <span className="text-[10px] text-slate-400 block mt-0.5">৳ {item.price} / 🪙 {item.pointsCost} Pts</span>
                       </div>
@@ -1255,8 +1419,7 @@ export default function App() {
                     </div>
                   ))}
 
-                  {/* Payment totals summary metadata */}
-                  <div className="bg-slate-50 p-4 rounded-2xl border space-y-2 text-xs">
+                  <div className="bg-slate-50 p-4 rounded-2xl border space-y-2 text-xs text-left">
                     <div className="flex justify-between font-bold text-slate-600">
                       <span>Store Subtotal:</span>
                       <span>৳ {cart.reduce((sum, item) => sum + item.price, 0)}</span>
@@ -1542,17 +1705,28 @@ export default function App() {
               <label className="text-xs text-slate-400 uppercase font-black block">Brand Logo Image</label>
               <div className="bg-rose-50 border border-rose-100/50 p-3 rounded-xl text-[10px] text-slate-600 font-semibold space-y-1">
                 <p className="font-extrabold text-[#F41B5E]">📐 Layout Guidelines:</p>
-                <p>• Square Aspect Ratio | Size Constraint: Max <strong className="text-slate-800">200 KB</strong></p>
+                <p>• Recommended Size: <strong className="text-slate-800">150 x 150 (1:1 Square)</strong></p>
+                <p>• Size Constraint: Max <strong className="text-slate-800">200 KB</strong>. Larger files will be auto-optimized.</p>
               </div>
               
               <div className="flex items-center gap-3 mt-2">
                 <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-4 rounded-xl cursor-pointer flex flex-col items-center justify-center">
                   <Upload className="w-5 h-5 text-slate-400 mb-1" />
                   <span className="text-[10px] font-bold text-slate-500">Select Local File</span>
-                  <input type="file" accept="image/*" onChange={(e) => handleImgUpload(e, setBrandLogoPreview)} className="hidden" />
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={(e) => handleUploadedImage(e, setBrandLogoPreview, setLogoOptimized, 150, 150, true)} 
+                    className="hidden" 
+                  />
                 </label>
                 {brandLogoPreview ? (
-                  <img src={brandLogoPreview} alt="Preview" className="w-16 h-16 rounded-xl object-cover border bg-slate-50" />
+                  <div className="relative">
+                    <img src={brandLogoPreview} alt="Preview" className="w-16 h-16 rounded-xl object-cover border bg-slate-50" />
+                    {isLogoOptimized && (
+                      <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-white text-[8px] px-1 py-0.5 rounded-md font-bold">Resized</span>
+                    )}
+                  </div>
                 ) : (
                   <div className="w-16 h-16 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex items-center justify-center text-[10px] text-slate-400 font-bold">No Image</div>
                 )}
@@ -1628,15 +1802,31 @@ export default function App() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs text-slate-400 uppercase font-black block">Product Image Upload (Max 200KB)</label>
+              <label className="text-xs text-slate-400 uppercase font-black block">Product Image Upload</label>
+              <div className="bg-rose-50 border border-rose-100/50 p-3 rounded-xl text-[10px] text-slate-600 font-semibold space-y-1">
+                <p className="font-extrabold text-[#F41B5E]">📐 Layout Guidelines:</p>
+                <p>• Recommended Size: <strong className="text-slate-800">400 x 300 (4:3 Landscape)</strong></p>
+                <p>• Larger sizes will be <strong className="text-slate-800">auto-cropped, optimized & compressed</strong> down beautifully.</p>
+              </div>
+
               <div className="flex items-center gap-3 mt-1">
                 <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-3 rounded-xl cursor-pointer flex flex-col items-center justify-center">
                   <Upload className="w-4 h-4 text-slate-400 mb-1" />
                   <span className="text-[9px] font-bold text-slate-500">Pick Photo</span>
-                  <input type="file" accept="image/*" onChange={(e) => handleImgUpload(e, setProdImagePreview)} className="hidden" />
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={(e) => handleUploadedImage(e, setProdImagePreview, setProdImgOptimized, 400, 300, false)} 
+                    className="hidden" 
+                  />
                 </label>
                 {prodImagePreview ? (
-                  <img src={prodImagePreview} alt="Product Preview" className="w-16 h-16 rounded-xl object-cover border bg-slate-50" />
+                  <div className="relative">
+                    <img src={prodImagePreview} alt="Product Preview" className="w-16 h-16 rounded-xl object-cover border bg-slate-50" />
+                    {isProdImgOptimized && (
+                      <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-white text-[8px] px-1 py-0.5 rounded-md font-bold">Resized</span>
+                    )}
+                  </div>
                 ) : (
                   <div className="w-16 h-16 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex items-center justify-center text-[9px] text-slate-400 font-bold">No Image</div>
                 )}
@@ -1787,7 +1977,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Complete Site Footer */}
+      {/* Complete Footer */}
       <footer className="bg-[#1E202B] text-slate-400 pt-16 pb-8 border-t border-slate-800 mt-16 text-xs text-left w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
           
