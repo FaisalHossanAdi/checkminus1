@@ -1,10 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = 'আপনার_SUPABASE_URL';
-const supabaseKey = 'আপনার_SUPABASE_ANON_KEY';
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ShieldCheck, 
@@ -25,15 +18,24 @@ import {
   Activity,
   HeartCrack,
   Clock,
-  ArrowRight,
   Wallet,
   AlertTriangle,
   Github,
-  Twitter,
-  Globe
+  Globe,
+  ShoppingCart,
+  User,
+  ShoppingBag,
+  Bell,
+  Lock,
+  MapPin,
+  Phone,
+  CreditCard,
+  CheckCircle,
+  ArrowRight,
+  Sparkles
 } from 'lucide-react';
 
-// Helper to convert any string to Word First Character Caps Lock (Title Case)
+// Word First Character Caps Lock Helper (Title Case)
 const toTitleCase = (str) => {
   if (!str) return '';
   return str
@@ -44,542 +46,529 @@ const toTitleCase = (str) => {
     .join(' ');
 };
 
-const [categories, setCategories] = useState([]);
-const [brands, setBrands] = useState([]);
-const [products, setProducts] = useState([]);
-
-const commonPredefinedProblems = [
-  'Battery Degradation & Fast Draining',
-  'UI Slowdown / Stutter Lags',
-  'Overheating Under Moderate Load',
-  'Wi-Fi Connection Dropping',
-  'Screen Burn-in / Color Flickering',
-  'Charging Port Failures',
-  'Other'
+// Initial Mock Data
+const initialCategories = [
+  { id: 'cat-1', name: 'Smartphones' },
+  { id: 'cat-2', name: 'Software & VPN' },
+  { id: 'cat-3', name: 'Laptops' },
+  { id: 'cat-other', name: 'Other' } 
 ];
 
-const sliderSlides = [
+const initialBrands = [
+  { id: 'brand-1', categoryId: 'cat-1', name: 'Samsung', logoUrl: 'https://images.unsplash.com/photo-1610792516307-ea5acd9c3b00?w=120&auto=format&fit=crop&q=60', approved: true },
+  { id: 'brand-2', categoryId: 'cat-1', name: 'Apple', logoUrl: 'https://images.unsplash.com/photo-1563206767-5b18f218e8de?w=120&auto=format&fit=crop&q=60', approved: true },
+  { id: 'brand-3', categoryId: 'cat-2', name: 'Cat VPN', logoUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&auto=format&fit=crop&q=60', approved: true },
+];
+
+const initialProducts = [
   {
-    id: 1,
-    title: "Don't Buy Regrets!",
-    subtitle: "Check the real-world defects before purchasing your next device.",
-    image: "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=1200&auto=format&fit=crop&q=80",
-    badge: "Community Driven"
+    id: 'prod-1',
+    brandId: 'brand-1',
+    modelName: 'Galaxy S24 Ultra',
+    faultScore: 48,
+    timeline: [15, 25, 48, 65, 80],
+    description: 'Significant camera shutter lag and screen vividness issues reported in early batches.',
+    affiliateLink: 'https://amazon.com/dp/S24Ultra-affiliate-id',
+    faults: [
+      { id: 'f-1', text: 'Camera Shutter Lag In Low Light', votes: 142, approved: true },
+      { id: 'f-2', text: 'Display Gradient Flickering', votes: 218, approved: true }
+    ]
   },
   {
-    id: 2,
-    title: "Fault Timeline Trackers",
-    subtitle: "See exactly when performance drops. 1 month, 6 months or 2 years?",
-    image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80",
-    badge: "Visual Insights"
+    id: 'prod-2',
+    brandId: 'brand-3',
+    modelName: 'Cat VPN Pro',
+    faultScore: 78,
+    timeline: [10, 50, 78, 90, 100],
+    description: 'Automatically disconnects after exactly 4 hours of usage, cutting off secure tunnel.',
+    affiliateLink: 'https://nordvpn.com/partner-affiliate-id',
+    faults: [
+      { id: 'f-3', text: 'Auto Disconnection After 4 Hours', votes: 540, approved: true }
+    ]
   },
   {
-    id: 3,
-    title: "Join & Earn Points",
-    subtitle: "Report issues, index new models, and claim reward vouchers.",
-    image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&auto=format&fit=crop&q=80",
-    badge: "Rewarding Truths"
+    id: 'prod-3',
+    brandId: 'brand-2',
+    modelName: 'MacBook Air M3',
+    faultScore: 12,
+    timeline: [2, 5, 8, 12, 18],
+    description: 'Highly reliable performance, minor anodized finish wear around charging ports.',
+    affiliateLink: 'https://amazon.com/dp/MacBookM3-affiliate-id',
+    faults: [
+      { id: 'f-5', text: 'Midnight Color Chipping Off Easily', votes: 95, approved: true }
+    ]
   }
 ];
 
-export default function App() {
-  const [categories, setCategories] = useState(initialCategories);
-  const [brands, setBrands] = useState(initialBrands);
-  const [products, setProducts] = useState(initialProducts);
+// E-commerce Store Mock Inventory
+const storeProducts = [
+  { id: 'sp-1', name: 'Premium Shockproof Phone Case', price: 1200, pointsCost: 150, image: 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=300&auto=format&fit=crop&q=80' },
+  { id: 'sp-2', name: 'High-Speed Type-C Braided Cable', price: 650, pointsCost: 80, image: 'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=300&auto=format&fit=crop&q=80' },
+  { id: 'sp-3', name: 'Anti-Glare Matte Screen Protector', price: 450, pointsCost: 50, image: 'https://images.unsplash.com/photo-1581090700227-13617d58f35f?w=300&auto=format&fit=crop&q=80' },
+  { id: 'sp-4', name: 'Universal Magnetic Car Mount', price: 1800, pointsCost: 200, image: 'https://images.unsplash.com/photo-1586105251261-72a756497a11?w=300&auto=format&fit=crop&q=80' },
+];
 
-  const [pendingBrands, setPendingBrands] = useState([]);
-  const [pendingFaults, setPendingFaults] = useState([
-    { id: 'pf-1', productId: 'prod-1', text: 'Screen Tint Discoloration', votes: 1, approved: false, modelName: 'Galaxy S24 Ultra' }
+// Rich Mock Visitor Analytics for Admin Dashboard
+const analyticsData = {
+  totalVisitors: 14850,
+  countries: [
+    { name: 'Bangladesh', count: 9800, percentage: 66 },
+    { name: 'India', count: 2450, percentage: 16 },
+    { name: 'USA', count: 1500, percentage: 10 },
+    { name: 'Others', count: 1100, percentage: 8 }
+  ],
+  districts: [
+    { name: 'Dhaka', count: 5400 },
+    { name: 'Chittagong', count: 1800 },
+    { name: 'Sylhet', count: 950 },
+    { name: 'Rajshahi', count: 850 },
+    { name: 'Khulna', count: 800 }
+  ],
+  ageDemographics: [
+    { range: '18-24', percentage: 45 },
+    { range: '25-34', percentage: 38 },
+    { range: '35-44', percentage: 12 },
+    { range: '45+', percentage: 5 }
+  ],
+  gender: { male: 72, female: 26, other: 2 }
+};
+
+export default function App() {
+  // Navigation: 'index' | 'store' | 'user-dashboard' | 'admin-dashboard' | 'thank-you'
+  const [currentView, setCurrentView] = useState('index');
+
+  // Core App States (Synced with LocalStorage to prevent reset during prototyping)
+  const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('c1_categories')) || initialCategories);
+  const [brands, setBrands] = useState(() => JSON.parse(localStorage.getItem('c1_brands')) || initialBrands);
+  const [products, setProducts] = useState(() => JSON.parse(localStorage.getItem('c1_products')) || initialProducts);
+  const [pendingBrands, setPendingBrands] = useState(() => JSON.parse(localStorage.getItem('c1_pendingBrands')) || []);
+  
+  // Auth States
+  const [isLoggedIn, setIsLoggedIn] = useState(() => JSON.parse(localStorage.getItem('c1_isLoggedIn')) || false);
+  const [userRole, setUserRole] = useState(() => localStorage.getItem('c1_userRole') || 'user'); // 'user' or 'admin'
+  const [username, setUsername] = useState(() => localStorage.getItem('c1_username') || 'Guest Contributor');
+  const [userPoints, setUserPoints] = useState(() => parseInt(localStorage.getItem('c1_userPoints')) || 250); // Seeded with 250 points
+  const [notifications, setNotifications] = useState([
+    { id: 1, text: 'Welcome to CheckMinus1! Earn points by indexing models.', unread: true },
+    { id: 2, text: 'Admin approved your Samsung model submission. +10 Points earned!', unread: false }
   ]);
 
-  // Points State
-  const [userPoints, setUserPoints] = useState(50);
-  const [showWalletModal, setShowWalletModal] = useState(false);
+  // E-commerce Cart States
+  const [cart, setCart] = useState([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [checkoutForm, setCheckoutForm] = useState({ name: '', address: '', phone: '', paymentMethod: 'cod' });
+  const [countdown, setCountdown] = useState(10);
+  const [lastOrderDetails, setLastOrderDetails] = useState(null);
 
-  // Auth States
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [userRole, setUserRole] = useState('user'); // 'admin' or 'user'
-  const [username, setUsername] = useState('Guest Contributor');
-  const [authModal, setAuthModal] = useState({ isOpen: false, tab: 'login' });
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [registerUsername, setRegisterUsername] = useState('');
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerCountry, setRegisterCountry] = useState('Bangladesh');
-
-  // Slider State
-  const [currentSlide, setCurrentSlide] = useState(0);
-
-  // Active Search / Filter State
+  // Search, Selection & UI States
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedBrand, setSelectedBrand] = useState('all');
-
-  // Modal Open states
-  const [showCatForm, setShowCatForm] = useState(false);
+  const [activeProduct, setActiveProduct] = useState(null);
+  
+  // Form Popups
   const [showBrandForm, setShowBrandForm] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
-  const [showUserProblemForm, setShowUserProblemForm] = useState(false);
+  const [showProblemForm, setShowProblemForm] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authTab, setAuthTab] = useState('login');
 
-  // Selected Active Product for Detailed Timeline Modal
-  const [activeProduct, setActiveProduct] = useState(null);
-  const [editTarget, setEditTarget] = useState(null);
-  
-  // Category Form Input
-  const [catName, setCatName] = useState('');
-  
-  // Brand Form Inputs
+  // Specific Form inputs
   const [brandName, setBrandName] = useState('');
-  const [brandCatId, setBrandCatId] = useState('cat-other'); // Default "Other" category
-  const [brandLogoFile, setBrandLogoFile] = useState(null);
   const [brandLogoPreview, setBrandLogoPreview] = useState('');
-
-  // Brand Approval Action State
-  const [adminBrandCategories, setAdminBrandCategories] = useState({});
-  const [adminBrandNewCat, setAdminBrandNewCat] = useState({});
-
-  // Product Form Inputs
   const [prodName, setProdName] = useState('');
   const [prodBrandId, setProdBrandId] = useState('');
   const [prodDesc, setProdDesc] = useState('');
-  const [prodFaultScore, setProdFaultScore] = useState(20);
-  const [timelineVal, setTimelineVal] = useState([10, 20, 30, 40, 50]);
-  const [prodFaults, setProdFaults] = useState('');
+  const [probProduct, setProbProduct] = useState('');
+  const [probText, setProbText] = useState('Battery Degradation & Fast Draining');
+  const [customProbText, setCustomProbText] = useState('');
 
-  // User Problem Post Form Inputs
-  const [postProbBrandId, setPostProbBrandId] = useState('');
-  const [postProbProductId, setPostProbProductId] = useState('');
-  const [postProbDropdownValue, setPostProbDropdownValue] = useState(commonPredefinedProblems[0]);
-  const [postProbCustomValue, setPostProbCustomValue] = useState('');
+  // Password Reset simulation
+  const [passForm, setPassForm] = useState({ current: '', newPass: '' });
 
-  // Success Notification
-  const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
+  // Status/Alert Banner
+  const [alertBanner, setAlertBanner] = useState({ show: false, msg: '', type: 'success' });
 
-  // Auto advance slide every 5 seconds
+  // Inject CSS Keyframes once component mounts
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % sliderSlides.length);
-    }, 5000);
-    return () => clearInterval(timer);
+    const styleId = 'checkminus1-styles';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.innerHTML = `
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.97); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes slideIn {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+        .animate-fadeIn { animation: fadeIn 0.25s ease-out forwards; }
+        .animate-slideIn { animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+      `;
+      document.head.appendChild(style);
+    }
   }, []);
 
-  const triggerNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification({ show: false, message: '', type: 'success' });
-    }, 4000);
+  // Synced Storage hooks
+  useEffect(() => {
+    localStorage.setItem('c1_categories', JSON.stringify(categories));
+    localStorage.setItem('c1_brands', JSON.stringify(brands));
+    localStorage.setItem('c1_products', JSON.stringify(products));
+    localStorage.setItem('c1_pendingBrands', JSON.stringify(pendingBrands));
+    localStorage.setItem('c1_isLoggedIn', JSON.stringify(isLoggedIn));
+    localStorage.setItem('c1_userRole', userRole);
+    localStorage.setItem('c1_username', username);
+    localStorage.setItem('c1_userPoints', userPoints.toString());
+  }, [categories, brands, products, pendingBrands, isLoggedIn, userRole, username, userPoints]);
+
+  const triggerAlert = (msg, type = 'success') => {
+    setAlertBanner({ show: true, msg, type });
+    setTimeout(() => setAlertBanner({ show: false, msg: '', type: 'success' }), 4000);
   };
 
-  // Fuzzy autocomplete brand matches
-  const autocompleteBrands = useMemo(() => {
-    if (searchQuery.trim().length < 2) return [];
-    return brands.filter(b => 
-      b.approved && b.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [brands, searchQuery]);
-
-  // Reads local file and returns Data URL for client side preview
-  const handleImageUploadChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 200 * 1024) {
-        triggerNotification('File size exceeds 200 KB limit', 'error');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setBrandLogoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-      setBrandLogoFile(file);
+  // Automated Count-down timer for Order Redirect
+  useEffect(() => {
+    let timer;
+    if (currentView === 'thank-you' && countdown > 0) {
+      timer = setInterval(() => setCountdown(prev => prev - 1), 1000);
+    } else if (currentView === 'thank-you' && countdown === 0) {
+      setCurrentView('index');
+      setCountdown(10);
     }
-  };
+    return () => clearInterval(timer);
+  }, [currentView, countdown]);
 
-  const handleCategorySubmit = (e) => {
-    e.preventDefault();
-    if (userRole !== 'admin') {
-      triggerNotification('Users cannot create categories. Only Admin can assign them.', 'error');
-      return;
-    }
-    if (!catName.trim()) return;
-
-    const formattedName = toTitleCase(catName);
-
-    if (editTarget && editTarget.type === 'category') {
-      setCategories(categories.map(c => c.id === editTarget.data.id ? { ...c, name: formattedName } : c));
-      triggerNotification('Category updated successfully');
-    } else {
-      const newCat = {
-        id: `cat-${Date.now()}`,
-        name: formattedName
-      };
-      setCategories([...categories, newCat]);
-      triggerNotification('Category created successfully');
-    }
-    setCatName('');
-    setEditTarget(null);
-    setShowCatForm(false);
-  };
-
-  const handleBrandSubmit = (e) => {
-    e.preventDefault();
-    if (!brandName.trim()) return;
-
-    const formattedBrandName = toTitleCase(brandName);
-    const finalLogo = brandLogoPreview || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=120&auto=format&fit=crop&q=60';
-
-    if (editTarget && editTarget.type === 'brand') {
-      setBrands(brands.map(b => b.id === editTarget.data.id ? { 
-        ...b, 
-        name: formattedBrandName, 
-        categoryId: brandCatId, 
-        logoUrl: finalLogo 
-      } : b));
-      triggerNotification('Brand updated successfully');
-    } else {
-      const targetCatId = userRole === 'admin' ? brandCatId : 'cat-other';
-      const newBrand = {
-        id: `brand-${Date.now()}`,
-        categoryId: targetCatId,
-        name: formattedBrandName,
-        logoUrl: finalLogo,
-        approved: userRole === 'admin' ? true : false
-      };
-
-      if (userRole === 'admin') {
-        setBrands([...brands, newBrand]);
-        triggerNotification('Brand added to active index');
-      } else {
-        setPendingBrands([...pendingBrands, newBrand]);
-        triggerNotification('Brand submitted for Admin Verification under "Other"', 'info');
-      }
-    }
-    setBrandName('');
-    setBrandCatId('cat-other');
-    setBrandLogoFile(null);
-    setBrandLogoPreview('');
-    setEditTarget(null);
-    setShowBrandForm(false);
-  };
-
-  const handleProductSubmit = (e) => {
-    e.preventDefault();
-    if (!prodName.trim() || !prodBrandId) return;
-
-    const formattedProdName = toTitleCase(prodName);
-
-    const faultsArray = prodFaults.split(',')
-      .map(f => f.trim())
-      .filter(f => f.length > 0)
-      .map((f, index) => ({
-        id: `f-${Date.now()}-${index}`,
-        text: toTitleCase(f),
-        votes: Math.floor(Math.random() * 20) + 1,
-        approved: true
-      }));
-
-    const newProduct = {
-      id: `prod-${Date.now()}`,
-      brandId: prodBrandId,
-      modelName: formattedProdName,
-      faultScore: parseInt(prodFaultScore),
-      timeline: timelineVal,
-      description: prodDesc || 'No summary registered yet. Help community by listing faults.',
-      faults: faultsArray.length > 0 ? faultsArray : [{ id: 'f-new', text: 'Ready For User Verified Claims', votes: 1, approved: true }]
-    };
-
-    setProducts([...products, newProduct]);
-    
-    // Reward points for indexing a new product
-    setUserPoints(prev => prev + 10);
-    triggerNotification('New product model indexed successfully! +10 Points earned 🪙');
-
-    setProdName('');
-    setProdBrandId('');
-    setProdDesc('');
-    setProdFaults('');
-    setProdFaultScore(20);
-    setTimelineVal([10, 20, 30, 40, 50]);
-    setEditTarget(null);
-    setShowProductForm(false);
-  };
-
-  const handleUserProblemSubmit = (e) => {
-    e.preventDefault();
-    if (!postProbProductId) {
-      triggerNotification('Please select a product model', 'error');
-      return;
-    }
-
-    let finalProblemText = postProbDropdownValue;
-    if (postProbDropdownValue === 'Other') {
-      if (!postProbCustomValue.trim()) {
-        triggerNotification('Please enter the custom problem', 'error');
-        return;
-      }
-      finalProblemText = postProbCustomValue;
-    }
-
-    const formattedProblem = toTitleCase(finalProblemText);
-    const targetProduct = products.find(p => p.id === postProbProductId);
-
-    if (targetProduct) {
-      const isExist = targetProduct.faults.some(f => f.text.toLowerCase() === formattedProblem.toLowerCase());
-      
-      let updatedFaults;
-      if (isExist) {
-        updatedFaults = targetProduct.faults.map(f => 
-          f.text.toLowerCase() === formattedProblem.toLowerCase() ? { ...f, votes: f.votes + 1 } : f
-        );
-      } else {
-        updatedFaults = [
-          ...targetProduct.faults, 
-          { id: `f-${Date.now()}`, text: formattedProblem, votes: 2, approved: true }
-        ];
-      }
-
-      setProducts(products.map(p => p.id === postProbProductId ? {
-        ...p,
-        faults: updatedFaults,
-        faultScore: Math.min(100, p.faultScore + 2)
-      } : p));
-
-      // Award bonus points for helpful reports
-      setUserPoints(prev => prev + 5);
-      triggerNotification('Report auto-validated & attached to index live! +5 Points 🪙');
-    }
-
-    // reset fields
-    setPostProbBrandId('');
-    setPostProbProductId('');
-    setPostProbDropdownValue(commonPredefinedProblems[0]);
-    setPostProbCustomValue('');
-    setShowUserProblemForm(false);
-  };
-
-  const approvePendingBrand = (id) => {
-    const brandToApprove = pendingBrands.find(b => b.id === id);
-    if (brandToApprove) {
-      let finalCatId = adminBrandCategories[id] || 'cat-other';
-      const newCatInput = adminBrandNewCat[id];
-
-      if (newCatInput && newCatInput.trim()) {
-        const formattedNewCat = toTitleCase(newCatInput);
-        const newCatId = `cat-${Date.now()}`;
-        const newCatObj = { id: newCatId, name: formattedNewCat };
-        
-        setCategories(prev => [...prev, newCatObj]);
-        finalCatId = newCatId;
-      }
-
-      const approved = { ...brandToApprove, categoryId: finalCatId, approved: true };
-      setBrands([...brands, approved]);
-      setPendingBrands(pendingBrands.filter(b => b.id !== id));
-      triggerNotification('Brand approved and indexed into category');
-    }
-  };
-
-  const rejectPendingBrand = (id) => {
-    setPendingBrands(pendingBrands.filter(b => b.id !== id));
-    triggerNotification('Brand submission declined', 'info');
-  };
-
-  const approvePendingFault = (id) => {
-    const faultToApprove = pendingFaults.find(f => f.id === id);
-    if (faultToApprove) {
-      setProducts(products.map(p => {
-        if (p.id === faultToApprove.productId) {
-          const isExist = p.faults.some(f => f.text.toLowerCase() === faultToApprove.text.toLowerCase());
-          if (isExist) {
-            return {
-              ...p,
-              faults: p.faults.map(f => f.text.toLowerCase() === faultToApprove.text.toLowerCase() ? { ...f, votes: f.votes + 1 } : f)
-            };
-          } else {
-            return {
-              ...p,
-              faults: [...p.faults, { id: `f-${Date.now()}`, text: faultToApprove.text, votes: 1, approved: true }]
-            };
-          }
-        }
-        return p;
-      }));
-      setPendingFaults(pendingFaults.filter(f => f.id !== id));
-      triggerNotification('Problem approved and added to live index');
-    }
-  };
-
-  const rejectPendingFault = (id) => {
-    setPendingFaults(pendingFaults.filter(f => f.id !== id));
-    triggerNotification('Problem report declined', 'info');
-  };
-
-  const triggerEditCategory = (cat) => {
-    if (userRole !== 'admin') {
-      triggerNotification('Access Denied', 'error');
-      return;
-    }
-    setEditTarget({ type: 'category', data: cat });
-    setCatName(cat.name);
-    setShowCatForm(true);
-  };
-
-  const triggerDeleteCategory = (id) => {
-    if (userRole !== 'admin') return;
-    setCategories(categories.filter(c => c.id !== id));
-    triggerNotification('Category deleted');
-  };
-
-  const triggerEditBrand = (brand) => {
-    setEditTarget({ type: 'brand', data: brand });
-    setBrandName(brand.name);
-    setBrandCatId(brand.categoryId);
-    setBrandLogoPreview(brand.logoUrl);
-    setShowBrandForm(true);
-  };
-
-  const triggerDeleteBrand = (id) => {
-    setBrands(brands.filter(b => b.id !== id));
-    setProducts(products.filter(p => p.brandId !== id));
-    triggerNotification('Brand deleted');
-  };
-
-  const triggerEditProduct = (prod) => {
-    setEditTarget({ type: 'product', data: prod });
-    setProdName(prod.modelName);
-    setProdBrandId(prod.brandId);
-    setProdDesc(prod.description);
-    setProdFaultScore(prod.faultScore);
-    setTimelineVal(prod.timeline);
-    setProdFaults(prod.faults.map(f => f.text).join(', '));
-    setShowProductForm(true);
-  };
-
-  const triggerDeleteProduct = (id) => {
-    setProducts(products.filter(p => p.id !== id));
-    if (activeProduct && activeProduct.id === id) setActiveProduct(null);
-    triggerNotification('Product deleted');
-  };
-
-  const upvoteFault = (productId, faultId) => {
-    setProducts(products.map(p => {
-      if (p.id === productId) {
-        const updatedFaults = p.faults.map(f => f.id === faultId ? { ...f, votes: f.votes + 1 } : f);
-        const newScore = Math.min(100, p.faultScore + 1);
-        return { ...p, faults: updatedFaults, faultScore: newScore };
-      }
-      return p;
-    }));
-    
-    if (activeProduct && activeProduct.id === productId) {
-      setActiveProduct(prev => ({
-        ...prev,
-        faults: prev.faults.map(f => f.id === faultId ? { ...f, votes: f.votes + 1 } : f),
-        faultScore: Math.min(100, prev.faultScore + 1)
-      }));
-    }
-    triggerNotification('Claim validated with community agreement (-1)');
-  };
-
+  // Auth Operations
   const handleAuthSubmit = (e) => {
     e.preventDefault();
-    if (authModal.tab === 'login') {
-      if (!loginEmail || !loginPassword) return;
+    if (authTab === 'login') {
       setIsLoggedIn(true);
-      const isAdmin = loginEmail.includes('admin');
-      setUserRole(isAdmin ? 'admin' : 'user');
-      setUsername(isAdmin ? 'Root Admin' : loginEmail.split('@')[0]);
-      triggerNotification(`Logged in as ${isAdmin ? 'Root Admin' : 'Verified Contributor'}`);
+      // Hardcoded login rules for demonstration/testing
+      if (checkoutForm.name.toLowerCase().includes('admin') || checkoutForm.address.toLowerCase().includes('admin')) {
+        setUserRole('admin');
+        setUsername('Root Administrator');
+        triggerAlert('Logged in securely as Admin.');
+      } else {
+        setUserRole('user');
+        setUsername('Rashedul Islam');
+        triggerAlert('Logged in successfully.');
+      }
     } else {
-      if (!registerUsername || !registerEmail || !registerCountry) return;
       setIsLoggedIn(true);
       setUserRole('user');
-      setUsername(toTitleCase(registerUsername));
-      triggerNotification(`Registered from ${toTitleCase(registerCountry)} & Logged In!`);
+      setUsername(toTitleCase(checkoutForm.name) || 'New Contributor');
+      triggerAlert('Registration Successful! Checked from ' + (checkoutForm.address || 'Bangladesh'));
     }
-    setAuthModal({ isOpen: false, tab: 'login' });
-    setLoginEmail('');
-    setLoginPassword('');
-    setRegisterUsername('');
-    setRegisterEmail('');
+    setShowAuthModal(false);
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUserRole('user');
-    setUsername('Guest User');
-    triggerNotification('Logged out successfully');
+    setUsername('Guest Contributor');
+    setCurrentView('index');
+    triggerAlert('Logged out securely.');
   };
 
-  const switchRole = () => {
-    const nextRole = userRole === 'admin' ? 'user' : 'admin';
-    setUserRole(nextRole);
-    triggerNotification(`Switched perspective to ${nextRole.toUpperCase()}`);
+  // E-commerce Cart Actions
+  const addToCart = (product) => {
+    const existing = cart.find(item => item.id === product.id);
+    if (existing) {
+      triggerAlert('Item already in your cart!');
+    } else {
+      setCart([...cart, { ...product, quantity: 1 }]);
+      triggerAlert('Added to your shopping cart!');
+    }
   };
 
-  const filteredBrands = useMemo(() => {
+  const removeFromCart = (id) => {
+    setCart(cart.filter(item => item.id !== id));
+  };
+
+  // Validate and Submit E-commerce Order
+  const handleCheckout = (e) => {
+    e.preventDefault();
+    const phoneRegex = /^01[3-9]\d{8}$/; // Bangladeshi standard 11 digits validation
+
+    if (!checkoutForm.name.trim() || !checkoutForm.address.trim()) {
+      triggerAlert('Please complete all delivery fields.', 'error');
+      return;
+    }
+
+    if (!phoneRegex.test(checkoutForm.phone)) {
+      triggerAlert('Error: Phone number must be a valid 11-digit Bangladeshi number.', 'error');
+      return;
+    }
+
+    // Calculate totals
+    const pointsTotal = cart.reduce((sum, item) => sum + item.pointsCost, 0);
+    const moneyTotal = cart.reduce((sum, item) => sum + item.price, 0);
+
+    if (checkoutForm.paymentMethod === 'points') {
+      if (userPoints < pointsTotal) {
+        triggerAlert('Insufficient points balance inside wallet!', 'error');
+        return;
+      }
+      setUserPoints(prev => prev - pointsTotal);
+    }
+
+    setLastOrderDetails({
+      items: [...cart],
+      totalPaid: checkoutForm.paymentMethod === 'points' ? `${pointsTotal} Pts` : `৳ ${moneyTotal}`,
+      method: checkoutForm.paymentMethod.toUpperCase(),
+      name: checkoutForm.name,
+      phone: checkoutForm.phone
+    });
+
+    // Success transition
+    setCart([]);
+    setIsCartOpen(false);
+    setCountdown(10);
+    setCurrentView('thank-you');
+    triggerAlert('Order received successfully!');
+  };
+
+  // Dynamic Content Submission with Autocapitalization
+  const handleBrandUpload = (e) => {
+    e.preventDefault();
+    if (!brandName.trim()) return;
+
+    const formattedName = toTitleCase(brandName);
+    const finalLogo = brandLogoPreview || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=120&auto=format&fit=crop&q=60';
+
+    const newBrand = {
+      id: `brand-${Date.now()}`,
+      categoryId: 'cat-other', // Standard users fallback to "Other" category
+      name: formattedName,
+      logoUrl: finalLogo,
+      approved: userRole === 'admin' ? true : false
+    };
+
+    if (userRole === 'admin') {
+      setBrands([...brands, newBrand]);
+      triggerAlert('Brand added and approved directly by Admin!');
+    } else {
+      setPendingBrands([...pendingBrands, newBrand]);
+      triggerAlert('Brand submitted for Admin review. Placed under "Other" category.');
+    }
+
+    setBrandName('');
+    setBrandLogoPreview('');
+    setShowBrandForm(false);
+  };
+
+  // Index new Model (+10 points)
+  const handleProductUpload = (e) => {
+    e.preventDefault();
+    if (!prodName.trim() || !prodBrandId) return;
+
+    const formattedModel = toTitleCase(prodName);
+    const newProduct = {
+      id: `prod-${Date.now()}`,
+      brandId: prodBrandId,
+      modelName: formattedModel,
+      faultScore: 10, // Starting minimal fault score
+      timeline: [5, 10, 15, 20, 25],
+      description: prodDesc || 'No user-submitted description provided yet.',
+      affiliateLink: 'https://amazon.com/s?k=' + encodeURIComponent(formattedModel),
+      faults: [{ id: `f-${Date.now()}`, text: 'Initial Index Active', votes: 1, approved: true }]
+    };
+
+    setProducts([...products, newProduct]);
+    setUserPoints(prev => prev + 10); // Reward 10 pts
+    
+    // Auto add notification
+    setNotifications([
+      { id: Date.now(), text: `You successfully indexed ${formattedModel}! +10 Points rewarded.`, unread: true },
+      ...notifications
+    ]);
+
+    setProdName('');
+    setProdDesc('');
+    setProdBrandId('');
+    setShowProductForm(false);
+    triggerAlert('Product indexed! +10 Points added to your wallet.');
+  };
+
+  // Report observed bug / fault (Auto verification for existing)
+  const handleProblemSubmission = (e) => {
+    e.preventDefault();
+    if (!probProduct) return;
+
+    const finalProblem = probText === 'Other' ? toTitleCase(customProbText) : probText;
+    if (!finalProblem.trim()) return;
+
+    // Direct injection into existing product model
+    const updatedProducts = products.map(p => {
+      if (p.id === probProduct) {
+        // Check if exact fault exists
+        const exists = p.faults.some(f => f.text.toLowerCase() === finalProblem.toLowerCase());
+        let updatedFaults;
+
+        if (exists) {
+          updatedFaults = p.faults.map(f => 
+            f.text.toLowerCase() === finalProblem.toLowerCase() ? { ...f, votes: f.votes + 1 } : f
+          );
+        } else {
+          updatedFaults = [...p.faults, { id: `f-${Date.now()}`, text: finalProblem, votes: 2, approved: true }];
+        }
+
+        return {
+          ...p,
+          faults: updatedFaults,
+          faultScore: Math.min(100, p.faultScore + 3) // Increase fault score due to user report
+        };
+      }
+      return p;
+    });
+
+    setProducts(updatedProducts);
+    
+    // Auto update popup state if visible
+    if (activeProduct && activeProduct.id === probProduct) {
+      const activeRef = updatedProducts.find(p => p.id === probProduct);
+      setActiveProduct(activeRef);
+    }
+
+    setUserPoints(prev => prev + 5); // Submit points award
+    triggerAlert('Fault submitted and automatically upvoted! +5 Points.');
+    setShowProblemForm(false);
+    setProbProduct('');
+    setCustomProbText('');
+  };
+
+  // Upvote fault
+  const upvoteFault = (prodId, faultId) => {
+    const updated = products.map(p => {
+      if (p.id === prodId) {
+        const updatedFaults = p.faults.map(f => f.id === faultId ? { ...f, votes: f.votes + 1 } : f);
+        return { ...p, faults: updatedFaults, faultScore: Math.min(100, p.faultScore + 1) };
+      }
+      return p;
+    });
+    setProducts(updated);
+    if (activeProduct && activeProduct.id === prodId) {
+      setActiveProduct(updated.find(p => p.id === prodId));
+    }
+    triggerAlert('I Face This Too (-1) vote registered.');
+  };
+
+  // Simulated image upload converter
+  const handleImgUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 200 * 1024) {
+        triggerAlert('Image upload limit: Max file size is 200 KB.', 'error');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => setBrandLogoPreview(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Admin routing panel actions
+  const approveBrand = (pendingItem, catId, newCatName) => {
+    let finalCatId = catId;
+    if (newCatName && newCatName.trim()) {
+      const formatted = toTitleCase(newCatName);
+      const newCatObj = { id: `cat-${Date.now()}`, name: formatted };
+      setCategories([...categories, newCatObj]);
+      finalCatId = newCatObj.id;
+    }
+
+    const approvedItem = { ...pendingItem, categoryId: finalCatId, approved: true };
+    setBrands([...brands, approvedItem]);
+    setPendingBrands(pendingBrands.filter(b => b.id !== pendingItem.id));
+    triggerAlert('Brand approved and indexed successfully.');
+  };
+
+  const rejectBrand = (id) => {
+    setPendingBrands(pendingBrands.filter(b => b.id !== id));
+    triggerAlert('Brand recommendation declined.', 'info');
+  };
+
+  // Fuzzy search filters
+  const fuzzyBrands = useMemo(() => {
+    if (searchQuery.length < 2) return [];
+    return brands.filter(b => b.approved && b.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [brands, searchQuery]);
+
+  const filteredBrandsList = useMemo(() => {
     return brands.filter(b => {
       if (!b.approved) return false;
       const matchCat = selectedCategory === 'all' || b.categoryId === selectedCategory;
-      const matchSearch = b.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCat && matchSearch;
+      const matchQuery = b.name.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchCat && matchQuery;
     });
   }, [brands, selectedCategory, searchQuery]);
 
-  const filteredProducts = useMemo(() => {
+  const filteredProductsList = useMemo(() => {
     return products.filter(p => {
       const brand = brands.find(b => b.id === p.brandId);
       if (!brand) return false;
       const matchCat = selectedCategory === 'all' || brand.categoryId === selectedCategory;
       const matchBrand = selectedBrand === 'all' || p.brandId === selectedBrand;
-      const matchSearch = p.modelName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          brand.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCat && matchBrand && matchSearch;
+      const matchQuery = p.modelName.toLowerCase().includes(searchQuery.toLowerCase()) || brand.name.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchCat && matchBrand && matchQuery;
     });
   }, [products, brands, selectedCategory, selectedBrand, searchQuery]);
 
-  const activeProductBrand = activeProduct ? brands.find(b => b.id === activeProduct.brandId) : null;
+  // E-commerce alternatives recommender
+  const suggestedAlternative = useMemo(() => {
+    if (!activeProduct) return null;
+    const currentBrand = brands.find(b => b.id === activeProduct.brandId);
+    if (!currentBrand) return null;
+
+    // Filter products within same category that have better (lower) fault score
+    const matches = products.filter(p => {
+      if (p.id === activeProduct.id) return false;
+      const b = brands.find(brand => brand.id === p.brandId);
+      return b && b.categoryId === currentBrand.categoryId && p.faultScore < activeProduct.faultScore;
+    });
+
+    // Sort by lowest fault score
+    return matches.sort((a, b) => a.faultScore - b.faultScore)[0] || null;
+  }, [activeProduct, products, brands]);
 
   return (
-    <div className="min-h-screen bg-[#FAF9FC] text-[#1E202B] font-sans relative overflow-x-hidden selection:bg-rose-100 selection:text-[#F41B5E] flex flex-col justify-between">
+    <div className="min-h-screen bg-[#FAF9FC] text-slate-800 font-sans flex flex-col justify-between relative overflow-x-hidden">
       
-      {/* Background Soft Glow - Matching image_09a3d2.jpg */}
-      <div className="absolute top-0 inset-x-0 h-[640px] bg-gradient-to-b from-[#FAF9FC] via-[#F4F2F7] to-transparent pointer-events-none -z-10" />
-      <div className="absolute top-10 -left-48 w-96 h-96 rounded-full bg-indigo-100/60 blur-3xl pointer-events-none -z-10" />
-      <div className="absolute top-40 -right-48 w-96 h-96 rounded-full bg-rose-100/50 blur-3xl pointer-events-none -z-10" />
+      {/* Visual Background Glower (Matching image_09a3d2.jpg) */}
+      <div className="absolute top-0 inset-x-0 h-[600px] bg-gradient-to-b from-indigo-50/40 via-[#F5F2F7] to-transparent pointer-events-none -z-10" />
+      <div className="absolute top-20 left-10 w-96 h-96 rounded-full bg-violet-100/50 blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-40 right-10 w-96 h-96 rounded-full bg-rose-100/30 blur-3xl pointer-events-none -z-10" />
 
-      {/* Grid Pattern Background Overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#e5e2eb_1px,transparent_1px),linear-gradient(to_bottom,#e5e2eb_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-30 pointer-events-none -z-10" />
-
-      {/* Interactive Floating Status Bar */}
-      {notification.show && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#1E202B] text-white px-5 py-3 rounded-full shadow-2xl transition-all animate-bounce">
-          <span className={`w-2.5 h-2.5 rounded-full ${notification.type === 'error' ? 'bg-red-500' : notification.type === 'info' ? 'bg-indigo-400' : 'bg-emerald-400'}`}></span>
-          <span className="text-xs font-semibold">{notification.message}</span>
+      {/* Floating Alerts Container */}
+      {alertBanner.show && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#1E202B] text-white px-5 py-3 rounded-2xl shadow-xl transition-all animate-bounce">
+          <span className={`w-2.5 h-2.5 rounded-full ${alertBanner.type === 'error' ? 'bg-rose-500' : 'bg-emerald-400'}`}></span>
+          <span className="text-xs font-bold">{alertBanner.msg}</span>
         </div>
       )}
 
-      {/* Main Header */}
-      <header className="border-b border-slate-100 bg-white/70 backdrop-blur-md sticky top-0 z-40 px-4 py-4 sm:px-6 lg:px-8 transition-all">
+      {/* Primary Header Navbar */}
+      <header className="border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-40 px-4 py-3.5 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           
-          {/* Logo & Brand Identity */}
-          <div className="flex items-center gap-3">
-            <div className="bg-[#F41B5E] text-white font-black text-xl w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-rose-200">
+          {/* Brand Identity Logos */}
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView('index')}>
+            <div className="bg-[#F41B5E] text-white font-black text-xl w-10 h-10 rounded-xl flex items-center justify-center shadow-md shadow-rose-200">
               -1
             </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tight text-slate-900 flex items-center">
+              <h1 className="text-2xl font-black tracking-tight text-slate-900">
                 Check<span className="text-[#F41B5E]">Minus1</span>
-                <span className="text-xs text-slate-400 ml-1 font-mono font-medium">.com</span>
               </h1>
-              <p className="text-[11px] text-slate-500 font-medium">Real-life product faults before you buy.</p>
+              <p className="text-[10px] text-slate-500 font-semibold tracking-wide">Crowdsourced Fault Indices</p>
             </div>
           </div>
 
-          {/* Search Controls with brand autocomplete suggestion pop-up */}
+          {/* Autocomplete Search Bar */}
           <div className="flex-1 max-w-md w-full relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
               <Search className="w-4 h-4" />
             </span>
             <input
@@ -587,21 +576,16 @@ export default function App() {
               placeholder="Search Samsung, MacBook, Cat VPN..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#FAF9FC] text-slate-800 placeholder-slate-400 pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-[#F41B5E] focus:bg-white focus:ring-4 focus:ring-rose-100 focus:outline-none transition-all text-sm shadow-sm"
+              className="w-full bg-[#FAF9FC] text-slate-800 placeholder-slate-400 pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:border-[#F41B5E] focus:bg-white focus:outline-none transition-all text-xs"
             />
-            
-            {/* Auto-complete dropdown */}
-            {autocompleteBrands.length > 0 && (
-              <div className="absolute top-12 left-0 right-0 bg-white border border-slate-150 rounded-xl shadow-xl z-50 p-2 text-xs">
-                <p className="text-[10px] text-slate-400 font-bold px-2 py-1 uppercase tracking-wider">Related Brands Found:</p>
-                {autocompleteBrands.map(b => (
+            {fuzzyBrands.length > 0 && (
+              <div className="absolute top-11 left-0 right-0 bg-white border border-slate-100 rounded-xl shadow-xl z-50 p-2 text-xs">
+                <p className="text-[9px] text-slate-400 font-bold px-2 py-1 uppercase tracking-wider">Matching Brands:</p>
+                {fuzzyBrands.map(b => (
                   <button
                     key={b.id}
-                    onClick={() => {
-                      setSelectedBrand(b.id);
-                      setSearchQuery('');
-                    }}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-50 rounded-lg flex items-center gap-2 transition-all"
+                    onClick={() => { setSelectedBrand(b.id); setSearchQuery(''); }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-slate-50 rounded-lg flex items-center gap-2"
                   >
                     <img src={b.logoUrl} alt="" className="w-5 h-5 rounded-full object-cover border" />
                     <span className="font-semibold text-slate-700">{b.name}</span>
@@ -611,769 +595,899 @@ export default function App() {
             )}
           </div>
 
-          {/* Auths & Admin toggle controllers */}
-          <div className="flex items-center gap-3">
-            {/* Wallet points badge */}
+          {/* Portal Controls */}
+          <div className="flex items-center gap-3 flex-wrap">
             <button 
-              onClick={() => setShowWalletModal(true)}
-              className="flex items-center gap-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold text-amber-700 transition-all"
+              onClick={() => setCurrentView('store')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                currentView === 'store' ? 'bg-[#F41B5E] text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+              }`}
             >
-              <Coins className="w-4 h-4 text-amber-600 animate-spin" />
-              <span>🪙 {userPoints} Points</span>
+              <ShoppingBag className="w-4 h-4" />
+              <span>Store</span>
             </button>
 
+            {isLoggedIn && (
+              <button
+                onClick={() => setCurrentView(userRole === 'admin' ? 'admin-dashboard' : 'user-dashboard')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                  ['user-dashboard', 'admin-dashboard'].includes(currentView) ? 'bg-[#F41B5E] text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {userRole === 'admin' ? <ShieldCheck className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                <span>{userRole === 'admin' ? 'Admin Portal' : 'My Dashboard'}</span>
+              </button>
+            )}
+
+            {/* Cart Controller */}
+            <button 
+              onClick={() => setIsCartOpen(true)}
+              className="relative p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-700 transition-colors"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              {cart.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#F41B5E] text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
+                  {cart.length}
+                </span>
+              )}
+            </button>
+
+            {/* Authorization Actions */}
             {isLoggedIn ? (
-              <div className="flex items-center gap-2 bg-slate-50 p-1.5 pr-3 rounded-xl border border-slate-100">
+              <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-100">
                 <div className="w-7 h-7 rounded-lg bg-[#F41B5E]/10 text-[#F41B5E] font-bold flex items-center justify-center text-xs">
                   {username[0]}
                 </div>
-                <div className="text-left hidden sm:block">
-                  <p className="text-[11px] font-black leading-none text-slate-800">{username}</p>
-                  <p className="text-[9px] text-slate-400 font-bold uppercase">{userRole}</p>
-                </div>
-                <button 
-                  onClick={handleLogout}
-                  title="Logout"
-                  className="p-1 hover:text-[#F41B5E] transition-colors ml-1"
-                >
+                <button onClick={handleLogout} className="p-1.5 hover:text-[#F41B5E] transition-colors" title="Logout">
                   <LogOut className="w-4 h-4" />
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setAuthModal({ isOpen: true, tab: 'login' })}
-                  className="px-3.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-all"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => setAuthModal({ isOpen: true, tab: 'register' })}
-                  className="bg-[#F41B5E] text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-md shadow-rose-200 hover:bg-rose-600 transition-all"
-                >
-                  Join Us
-                </button>
-              </div>
+              <button
+                onClick={() => { setAuthTab('login'); setShowAuthModal(true); }}
+                className="bg-[#F41B5E] hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-rose-200 transition-all"
+              >
+                Sign In
+              </button>
             )}
-
-            {/* Quick perspective switcher */}
-            <button
-              onClick={switchRole}
-              className={`p-2 rounded-xl border text-xs font-bold transition-all ${
-                userRole === 'admin' 
-                  ? 'bg-rose-50 text-[#F41B5E] border-rose-100' 
-                  : 'bg-white text-slate-400 border-slate-200 hover:text-slate-800'
-              }`}
-              title="Toggle admin perspective mode"
-            >
-              <ShieldCheck className="w-5 h-5" />
-            </button>
           </div>
+
         </div>
       </header>
 
-      {/* Admin Quick Alert strip */}
-      {userRole === 'admin' && (
-        <div className="bg-[#1E202B] text-slate-300 py-3 px-4 sm:px-6 lg:px-8 border-b border-slate-800 transition-all animate-fadeIn">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="bg-rose-500/20 text-[#F41B5E] border border-rose-500/30 px-2 py-0.5 rounded text-[10px] font-black tracking-widest uppercase">Admin Active</span>
-              <p className="font-semibold text-slate-400">Manage Categories, Approve User claims and Brand indexes.</p>
+      {/* 10 Seconds Countdown Order Screen (Thank You View) */}
+      {currentView === 'thank-you' && lastOrderDetails && (
+        <div className="max-w-2xl mx-auto my-16 p-8 bg-white border border-slate-100 rounded-3xl shadow-2xl text-center animate-fadeIn">
+          <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="w-10 h-10" />
+          </div>
+          <h2 className="text-3xl font-black text-slate-900 mb-2">Thank You For Your Order!</h2>
+          <p className="text-sm text-slate-500 mb-6">Your order has been recorded successfully and is currently being processed.</p>
+          
+          {/* Order Summary Metadata */}
+          <div className="bg-[#FAF9FC] p-4 rounded-2xl border border-slate-100 text-left text-xs space-y-2 max-w-md mx-auto mb-8">
+            <p className="font-extrabold text-slate-700 border-b pb-1.5 uppercase tracking-wider text-[10px]">Order Specifications</p>
+            <div className="flex justify-between">
+              <span className="text-slate-400 font-semibold">Recipient Name:</span>
+              <span className="text-slate-800 font-bold">{lastOrderDetails.name}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="bg-slate-800 text-slate-300 px-2 py-1 rounded font-bold">
-                Pending Brands: {pendingBrands.length}
-              </span>
-              <span className="bg-slate-800 text-slate-300 px-2 py-1 rounded font-bold">
-                Pending Claims: {pendingFaults.length}
-              </span>
+            <div className="flex justify-between">
+              <span className="text-slate-400 font-semibold">Phone Contact:</span>
+              <span className="text-slate-800 font-bold">{lastOrderDetails.phone}</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400 font-semibold">Paid Via:</span>
+              <span className="text-slate-800 font-bold">{lastOrderDetails.method}</span>
+            </div>
+            <div className="flex justify-between border-t pt-2 mt-2">
+              <span className="text-slate-500 font-extrabold">Grand Total Paid:</span>
+              <span className="text-[#F41B5E] font-black">{lastOrderDetails.totalPaid}</span>
+            </div>
+          </div>
+
+          <div className="inline-flex items-center gap-2 bg-rose-50 text-[#F41B5E] px-4 py-2 rounded-full font-bold text-xs">
+            <Clock className="w-4 h-4 animate-spin" />
+            <span>Redirecting back to home page in <strong className="text-lg">{countdown}s</strong>...</span>
           </div>
         </div>
       )}
 
-      {}
-      {/* Dynamic Top Slider Carousel (Max Height 350px) */}
-      <section className="max-w-7xl mx-auto w-full px-4 pt-6 sm:px-6 lg:px-8">
-        <div className="relative rounded-3xl overflow-hidden h-[220px] sm:h-[280px] md:h-[350px] shadow-lg border border-slate-100 group">
-          {/* Active slide background image */}
-          <div 
-            className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out scale-102 filter brightness-[0.45]"
-            style={{ backgroundImage: `url(${sliderSlides[currentSlide].image})` }}
-          />
-
-          {/* Text/CTA overlay container */}
-          <div className="absolute inset-0 flex flex-col justify-center p-6 sm:p-10 md:p-12 text-white z-10 select-none">
-            <span className="inline-block self-start bg-[#F41B5E] text-white text-[10px] sm:text-xs font-black uppercase px-3 py-1 rounded-full mb-3 tracking-widest">
-              {sliderSlides[currentSlide].badge}
-            </span>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black mb-2 leading-tight max-w-lg transition-transform duration-500">
-              {sliderSlides[currentSlide].title}
-            </h2>
-            <p className="text-xs sm:text-sm md:text-base text-slate-200 max-w-md font-medium">
-              {sliderSlides[currentSlide].subtitle}
-            </p>
-          </div>
-
-          {/* Backwards Button */}
-          <button 
-            onClick={() => setCurrentSlide((prev) => (prev - 1 + sliderSlides.length) % sliderSlides.length)}
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100"
-            aria-label="Previous Slide"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-
-          {/* Forwards Button */}
-          <button 
-            onClick={() => setCurrentSlide((prev) => (prev + 1) % sliderSlides.length)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100"
-            aria-label="Next Slide"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-
-          {/* Bullet navigation dot indicators */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
-            {sliderSlides.map((_, idx) => (
-              <button 
-                key={idx}
-                onClick={() => setCurrentSlide(idx)}
-                className={`w-2.5 h-2.5 rounded-full transition-all ${
-                  idx === currentSlide ? 'bg-[#F41B5E] w-6' : 'bg-white/40 hover:bg-white/70'
-                }`}
-                aria-label={`Go to slide ${idx + 1}`}
+      {/* Main Container Views */}
+      {currentView === 'index' && (
+        <>
+          {/* Sliding Carousel Section */}
+          <section className="max-w-7xl mx-auto w-full px-4 pt-6 sm:px-6 lg:px-8">
+            <div className="relative rounded-3xl overflow-hidden h-[240px] sm:h-[300px] shadow-lg border border-slate-100 group">
+              <div 
+                className="absolute inset-0 bg-cover bg-center filter brightness-[0.5] transition-all"
+                style={{ backgroundImage: `url(https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80)` }}
               />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {}
-      {/* 4 Key Features Row under Slider */}
-      <section className="max-w-7xl mx-auto w-full px-4 pt-8 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-start gap-3 hover:shadow-md transition-all">
-            <div className="p-2.5 rounded-xl bg-rose-50 text-[#F41B5E] shrink-0">
-              <Activity className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">Minus-1 Curve</h3>
-              <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">
-                Observe dynamic degradation curves charting product lifespan performance drops.
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-start gap-3 hover:shadow-md transition-all">
-            <div className="p-2.5 rounded-xl bg-[#F41B5E]/10 text-[#F41B5E] shrink-0">
-              <HeartCrack className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">Verified Defects</h3>
-              <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">
-                Vote and check crowd-sourced faults confirmed by thousands of actual gadget owners.
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-start gap-3 hover:shadow-md transition-all">
-            <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
-              <Coins className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">Contribution Rewards</h3>
-              <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">
-                Submit raw unindexed products and earn 10 points redeemable for premium cash vouchers.
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-start gap-3 hover:shadow-md transition-all">
-            <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
-              <Clock className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">Predictive Timelines</h3>
-              <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">
-                Analyze if a device fails within 3 months, 6 months, or functions beautifully past 2 years.
-              </p>
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      {}
-      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow">
-        
-        {/* Admin Verification Queue (Only Shows when items need approval) */}
-        {userRole === 'admin' && (pendingBrands.length > 0 || pendingFaults.length > 0) && (
-          <div className="mb-10 bg-white border-2 border-[#F41B5E]/20 p-6 rounded-3xl shadow-xl shadow-rose-50/40 relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-[#F41B5E] text-white text-[10px] font-black px-3 py-1 rounded-bl-xl tracking-wider uppercase">
-              Action Required
-            </div>
-            
-            <h2 className="text-base font-black text-slate-900 mb-4 flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-[#F41B5E]" />
-              Moderation Control Queue
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Brand Approvals with category routing */}
-              <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Pending User Brands ({pendingBrands.length})</h3>
-                {pendingBrands.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">No brand submissions awaiting approval.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {pendingBrands.map(pb => (
-                      <div key={pb.id} className="p-3 bg-white rounded-xl border border-slate-100 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <img src={pb.logoUrl} alt="" className="w-8 h-8 rounded-full object-cover border" />
-                            <div>
-                              <p className="text-xs font-bold text-slate-800">{pb.name}</p>
-                              <span className="text-[10px] text-slate-400 font-bold">Assigned default: Other</span>
-                            </div>
-                          </div>
-                          <div className="flex gap-1.5">
-                            <button 
-                              onClick={() => approvePendingBrand(pb.id)}
-                              className="bg-emerald-500 text-white hover:bg-emerald-600 p-1.5 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold"
-                              title="Approve & Save"
-                            >
-                              <Check className="w-4 h-4" /> Approve
-                            </button>
-                            <button 
-                              onClick={() => rejectPendingBrand(pb.id)}
-                              className="bg-rose-100 text-[#F41B5E] hover:bg-rose-200 p-1.5 rounded-lg transition-colors"
-                              title="Decline"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Admin Inline Category Routing Selector */}
-                        <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs space-y-2">
-                          <p className="font-bold text-[10px] text-slate-500 uppercase tracking-wider">Change Indexed Category during Approval:</p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <select
-                              value={adminBrandCategories[pb.id] || 'cat-other'}
-                              onChange={(e) => setAdminBrandCategories({
-                                ...adminBrandCategories,
-                                [pb.id]: e.target.value
-                              })}
-                              className="bg-white border border-slate-200 p-1.5 rounded-md focus:outline-none"
-                            >
-                              {categories.map(cat => (
-                                <option key={cat.id} value={cat.id}>{cat.name}</option>
-                              ))}
-                            </select>
-                            
-                            <input
-                              type="text"
-                              placeholder="Create New Category..."
-                              value={adminBrandNewCat[pb.id] || ''}
-                              onChange={(e) => setAdminBrandNewCat({
-                                ...adminBrandNewCat,
-                                [pb.id]: e.target.value
-                              })}
-                              className="bg-white border border-slate-200 p-1.5 rounded-md focus:outline-none text-xs"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Fault Claim Approvals */}
-              <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Pending Fault Reports ({pendingFaults.length})</h3>
-                {pendingFaults.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">No claim submissions awaiting validation.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {pendingFaults.map(pf => (
-                      <div key={pf.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100">
-                        <div className="pr-4">
-                          <p className="text-xs font-bold text-slate-800">"{pf.text}"</p>
-                          <span className="text-[9px] text-[#F41B5E] font-bold bg-rose-50 px-1.5 py-0.5 rounded mt-1 inline-block">
-                            Model: {pf.modelName}
-                          </span>
-                        </div>
-                        <div className="flex gap-1.5 shrink-0">
-                          <button 
-                            onClick={() => approvePendingFault(pf.id)}
-                            className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 p-1.5 rounded-lg transition-colors"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => rejectPendingFault(pf.id)}
-                            className="bg-rose-100 text-[#F41B5E] hover:bg-rose-200 p-1.5 rounded-lg transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-            </div>
-          </div>
-        )}
-
-        {/* Category Filter Pills Grid */}
-        <div className="flex flex-wrap items-center gap-2 mb-8 border-b border-slate-100 pb-5">
-          <button
-            onClick={() => { setSelectedCategory('all'); setSelectedBrand('all'); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-tight transition-all ${
-              selectedCategory === 'all' 
-                ? 'bg-[#1E202B] text-white shadow-md' 
-                : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200/60 shadow-sm'
-            }`}
-          >
-            All Categories
-          </button>
-          
-          {categories.map(cat => (
-            <div key={cat.id} className="relative group flex items-center">
-              <button
-                onClick={() => { setSelectedCategory(cat.id); setSelectedBrand('all'); }}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-tight transition-all ${
-                  selectedCategory === cat.id 
-                    ? 'bg-[#1E202B] text-white shadow-md' 
-                    : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200/60 shadow-sm'
-                }`}
-              >
-                {cat.name}
-              </button>
-              
-              {userRole === 'admin' && (
-                <div className="ml-1.5 flex gap-1 bg-white border border-slate-200 p-1 rounded-lg shadow-sm">
-                  <button 
-                    onClick={() => triggerEditCategory(cat)} 
-                    className="text-slate-500 hover:text-slate-900 font-bold text-[10px] px-1 py-0.5 rounded hover:bg-slate-50"
-                  >
-                    <Edit3 className="w-3 h-3" />
-                  </button>
-                  <button 
-                    onClick={() => triggerDeleteCategory(cat.id)} 
-                    className="text-[#F41B5E] hover:text-rose-800 font-bold text-[10px] px-1 py-0.5 rounded hover:bg-slate-50"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-
-          {/* User Action trigger & Admin fast Category trigger */}
-          <div className="ml-auto flex items-center gap-2 mt-4 sm:mt-0 w-full sm:w-auto justify-end">
-            <button
-              onClick={() => setShowUserProblemForm(true)}
-              className="bg-white hover:bg-slate-50 text-[#F41B5E] border border-slate-200 font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
-            >
-              <MessageSquare className="w-3.5 h-3.5 text-[#F41B5E]" />
-              Report Fault
-            </button>
-
-            {userRole === 'admin' && (
-              <button
-                onClick={() => {
-                  setEditTarget(null);
-                  setCatName('');
-                  setShowCatForm(true);
-                }}
-                className="bg-[#F41B5E] hover:bg-rose-600 text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md shadow-rose-200 transition-all hover:scale-102"
-              >
-                <Plus className="w-3.5 h-3.5 text-white" />
-                Add Category
-              </button>
-            )}
-          </div>
-        </div>
-
-        {}
-        {/* Main Workspace Layout: Brand Sidebar on the left, Products list on the right */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          
-          {/* Vertical Brand Sidebar selector */}
-          <aside className="lg:col-span-1">
-            <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm lg:sticky lg:top-28">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-                <h2 className="text-xs uppercase tracking-widest font-black text-slate-400 flex items-center gap-2">
-                  <span className="w-1.5 h-3.5 bg-[#F41B5E] rounded-full"></span> Brands
+              <div className="absolute inset-0 flex flex-col justify-center p-8 text-white z-10">
+                <span className="self-start bg-[#F41B5E] text-[9px] font-black uppercase px-2.5 py-1 rounded-full mb-2 tracking-widest">
+                  Truth Indexes Only
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-black mb-2 max-w-lg leading-tight">
+                  Don't Buy Regrets! Check Hidden Product Faults First.
                 </h2>
-                <button
-                  onClick={() => { setEditTarget(null); setBrandName(''); setBrandLogoPreview(''); setBrandCatId('cat-other'); setShowBrandForm(true); }}
-                  className="bg-rose-50 hover:bg-rose-100 text-[#F41B5E] font-extrabold text-[11px] px-2 py-1.5 rounded-lg transition-all flex items-center gap-1"
-                >
-                  <Plus className="w-3 h-3 text-[#F41B5E]" /> Add
-                </button>
+                <p className="text-xs text-slate-200 max-w-sm">
+                  We crowdsource verified defects and product degradation timelines so you can make informed decisions.
+                </p>
               </div>
+            </div>
+          </section>
 
-              {/* Stacked Vertical Brand Cards Column - Horizontal scrollable strip on mobile, column on desktop */}
-              <div className="flex flex-row lg:flex-col gap-2.5 overflow-x-auto lg:overflow-y-auto pb-3 lg:pb-0 max-h-[300px] lg:max-h-[550px] pr-1 scrollbar-thin scrollbar-thumb-slate-200">
-                
-                {/* "All Brands" Button */}
+          {/* Key Feature Cards section */}
+          <section className="max-w-7xl mx-auto w-full px-4 pt-6 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3">
+              <div className="p-2.5 rounded-xl bg-rose-50 text-[#F41B5E] shrink-0 h-10 w-10 flex items-center justify-center">
+                <Activity className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide">Minus-1 Curve</h4>
+                <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5">Visualize real degradation speed curves mapping lifespan performance drops.</p>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3">
+              <div className="p-2.5 rounded-xl bg-violet-50 text-indigo-600 shrink-0 h-10 w-10 flex items-center justify-center">
+                <HeartCrack className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide">Verified Defects</h4>
+                <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5">Check upvoted issues confirmed by thousands of actual gadget owners.</p>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 shrink-0 h-10 w-10 flex items-center justify-center">
+                <Coins className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide">Submit & Earn</h4>
+                <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5">Index unlisted products to earn points for e-commerce shopping discounts.</p>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3">
+              <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 shrink-0 h-10 w-10 flex items-center justify-center">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide">Predictive Analysis</h4>
+                <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5">Learn when devices fail: within 3 months, 6 months, or after 2 years.</p>
+              </div>
+            </div>
+          </section>
+
+          {/* Index Work area */}
+          <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow">
+            
+            {/* Category selection bar */}
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-150 pb-5 mb-8">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
-                  onClick={() => setSelectedBrand('all')}
-                  className={`p-3 rounded-2xl border flex items-center justify-between transition-all shrink-0 min-w-[120px] lg:w-full ${
-                    selectedBrand === 'all' 
-                      ? 'border-[#F41B5E] bg-rose-50/20 shadow-sm text-slate-800 font-extrabold scale-101' 
-                      : 'border-slate-200/60 bg-white hover:border-slate-300 text-slate-700 shadow-sm'
+                  onClick={() => { setSelectedCategory('all'); setSelectedBrand('all'); }}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    selectedCategory === 'all' ? 'bg-[#1E202B] text-white shadow-md' : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 shadow-sm'
                   }`}
                 >
-                  <span className="text-xs font-extrabold text-slate-800">All Brands</span>
-                  <span className="text-[10px] font-black text-[#F41B5E] tracking-widest hidden lg:inline">ALL</span>
+                  All Categories
                 </button>
-
-                {filteredBrands.map(brand => (
-                  <div 
-                    key={brand.id}
-                    className={`group relative p-3 rounded-2xl border flex items-center justify-between gap-3 transition-all shrink-0 min-w-[130px] lg:w-full ${
-                      selectedBrand === brand.id 
-                        ? 'border-[#F41B5E] bg-rose-50/20 shadow-md scale-101' 
-                        : 'border-slate-200/60 bg-white hover:border-slate-300 shadow-sm'
+                {categories.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => { setSelectedCategory(cat.id); setSelectedBrand('all'); }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      selectedCategory === cat.id ? 'bg-[#1E202B] text-white shadow-md' : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 shadow-sm'
                     }`}
                   >
-                    <div onClick={() => setSelectedBrand(brand.id)} className="flex items-center gap-2.5 cursor-pointer w-full overflow-hidden">
-                      <img 
-                        src={brand.logoUrl} 
-                        alt={brand.name} 
-                        className="w-7 h-7 rounded-full object-cover border border-slate-100 shadow-sm shrink-0"
-                      />
-                      <span className="text-xs font-extrabold text-slate-800 truncate">{brand.name}</span>
-                    </div>
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
 
-                    {/* Quick moderation controls within vertical stack (Desktop only) */}
-                    {userRole === 'admin' && (
-                      <div className="absolute inset-y-0 right-0 bg-white/95 rounded-r-2xl opacity-0 group-hover:opacity-100 hidden lg:flex items-center justify-center gap-1 px-2 transition-opacity duration-150">
-                        <button 
-                          onClick={() => triggerEditBrand(brand)} 
-                          className="bg-indigo-50 text-indigo-600 border border-indigo-100 text-[10px] font-bold p-1 rounded-md hover:bg-indigo-100 transition-all"
-                          title="Edit Brand"
-                        >
-                          <Edit3 className="w-3 h-3" />
-                        </button>
-                        <button 
-                          onClick={() => triggerDeleteBrand(brand.id)} 
-                          className="bg-rose-50 text-[#F41B5E] border border-rose-100 text-[10px] font-bold p-1 rounded-md hover:bg-rose-100 transition-all"
-                          title="Delete Brand"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+              {/* Interaction triggers */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (!isLoggedIn) { triggerAlert('Please sign in first.', 'error'); return; }
+                    setShowProblemForm(true);
+                  }}
+                  className="bg-white hover:bg-slate-50 text-[#F41B5E] border border-slate-200 font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  Report Fault
+                </button>
+                <button
+                  onClick={() => {
+                    if (!isLoggedIn) { triggerAlert('Please sign in first.', 'error'); return; }
+                    setShowProductForm(true);
+                  }}
+                  className="bg-[#F41B5E] hover:bg-rose-600 text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md shadow-rose-200 transition-all hover:scale-102"
+                >
+                  <Plus className="w-3.5 h-3.5 text-white" />
+                  Index New Model (+10 Pts)
+                </button>
+              </div>
+            </div>
+
+            {/* Layout Grid: Left brand sidebar, right products view */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+              
+              {/* Brands Column */}
+              <aside className="lg:col-span-1">
+                <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm lg:sticky lg:top-24">
+                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                    <h3 className="text-xs uppercase tracking-widest font-black text-slate-400 flex items-center gap-2">
+                      <span className="w-1.5 h-3.5 bg-[#F41B5E] rounded-full"></span> Brands
+                    </h3>
+                    <button
+                      onClick={() => {
+                        if (!isLoggedIn) { triggerAlert('Please sign in first.', 'error'); return; }
+                        setShowBrandForm(true);
+                      }}
+                      className="bg-rose-50 hover:bg-rose-100 text-[#F41B5E] font-black text-[10px] px-2 py-1.5 rounded-lg transition-all flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> Add Brand
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-2 max-h-[500px] overflow-y-auto pr-1">
+                    <button
+                      onClick={() => setSelectedBrand('all')}
+                      className={`p-3 rounded-2xl border flex items-center justify-between transition-all ${
+                        selectedBrand === 'all' ? 'border-[#F41B5E] bg-rose-50/20 text-slate-800 font-extrabold' : 'border-slate-200/60 bg-white text-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      <span className="text-xs">All Brands</span>
+                      <span className="text-[10px] text-slate-400 font-black">ALL</span>
+                    </button>
+                    {filteredBrandsList.map(b => (
+                      <button
+                        key={b.id}
+                        onClick={() => setSelectedBrand(b.id)}
+                        className={`p-3 rounded-2xl border flex items-center gap-3 transition-all ${
+                          selectedBrand === b.id ? 'border-[#F41B5E] bg-rose-50/20 text-slate-800 font-extrabold' : 'border-slate-200/60 bg-white text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <img src={b.logoUrl} alt="" className="w-6 h-6 rounded-full object-cover border" />
+                        <span className="text-xs">{b.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </aside>
+
+              {/* Products Directory view */}
+              <section className="lg:col-span-3">
+                {filteredProductsList.length === 0 ? (
+                  
+                  // Product Not Available fallback page
+                  <div className="bg-white border border-rose-100 rounded-3xl p-8 text-center max-w-xl mx-auto my-6 shadow-xl">
+                    <AlertTriangle className="w-16 h-16 text-[#F41B5E] mx-auto mb-4 animate-bounce" />
+                    <h3 className="text-2xl font-black text-slate-900 mb-2">"{searchQuery}" Not Yet Indexed</h3>
+                    <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+                      This product isn't registered in our database. Help fellow buyers by initiating the first Index details and earn points!
+                    </p>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 inline-block mb-6 text-xs font-bold text-slate-700">
+                      💰 Reward Option Active: <span className="text-[#F41B5E]">Earn 10 Contribution Points</span>
+                    </div>
+                    <div>
+                      <button
+                        onClick={() => {
+                          if (!isLoggedIn) { triggerAlert('Please sign in first.', 'error'); return; }
+                          setProdName(toTitleCase(searchQuery));
+                          setShowProductForm(true);
+                        }}
+                        className="bg-[#F41B5E] hover:bg-rose-600 text-white font-black text-xs px-6 py-3 rounded-xl transition-all shadow-md inline-flex items-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Index Product Model Now
+                      </button>
+                    </div>
+                  </div>
+
+                ) : (
+                  
+                  // Main list
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {filteredProductsList.map(prod => {
+                      const brand = brands.find(b => b.id === prod.brandId);
+                      return (
+                        <div key={prod.id} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden">
+                          <div>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                {brand && <img src={brand.logoUrl} alt="" className="w-5 h-5 rounded-full object-cover border" />}
+                                <span className="text-[10px] font-black text-slate-400">{brand ? brand.name : 'Unknown Brand'}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-[8px] text-slate-400 block font-bold uppercase">Fault Index</span>
+                                <span className={`text-sm font-black ${prod.faultScore > 40 ? 'text-[#F41B5E]' : 'text-emerald-500'}`}>
+                                  -{prod.faultScore}%
+                                </span>
+                              </div>
+                            </div>
+
+                            <h3 className="text-lg font-black text-slate-900 mb-1">{prod.modelName}</h3>
+                            <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed font-semibold">{prod.description}</p>
+
+                            {/* Specific Bugs list preview */}
+                            <div className="space-y-1.5 mb-4">
+                              {prod.faults.slice(0, 2).map(f => (
+                                <div key={f.id} className="flex justify-between items-center text-[11px] bg-slate-50/50 p-2 rounded-xl border border-slate-100">
+                                  <span className="text-slate-700 font-bold truncate pr-1">{f.text}</span>
+                                  <button
+                                    onClick={() => upvoteFault(prod.id, f.id)}
+                                    className="bg-rose-50 hover:bg-rose-100 text-[#F41B5E] text-[10px] px-2 py-0.5 rounded-lg font-black flex items-center gap-1 shrink-0 transition-colors"
+                                  >
+                                    <span>-1</span>
+                                    <span className="text-slate-400">{f.votes}</span>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => setActiveProduct(prod)}
+                            className="w-full bg-violet-50 hover:bg-violet-100 text-indigo-600 font-bold text-xs py-2 rounded-xl transition-colors text-center block"
+                          >
+                            Inspect Timeline Details
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
+            </div>
+
+          </main>
+        </>
+      )}
+
+      {/* Store Front Panel */}
+      {currentView === 'store' && (
+        <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow">
+          <div className="flex justify-between items-center mb-8 border-b pb-4">
+            <div>
+              <h2 className="text-2xl font-black text-slate-900">CheckMinus1 Reward Store</h2>
+              <p className="text-xs text-slate-500">Spend your hard-earned points or purchase premium gadget protections.</p>
+            </div>
+            {isLoggedIn && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2 rounded-2xl flex items-center gap-1.5 text-xs font-black">
+                <Coins className="w-4 h-4 text-amber-500 animate-spin" />
+                <span>My Balance: {userPoints} Points</span>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {storeProducts.map(p => (
+              <div key={p.id} className="bg-white border border-slate-150 rounded-3xl overflow-hidden shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
+                <img src={p.image} alt={p.name} className="w-full h-48 object-cover border-b" />
+                <div className="p-4 space-y-3">
+                  <h3 className="text-xs font-extrabold text-slate-800 line-clamp-1">{p.name}</h3>
+                  <div className="flex justify-between items-center">
+                    <div className="text-left">
+                      <span className="text-[10px] text-slate-400 block font-bold">Standard Price</span>
+                      <span className="text-sm font-black text-slate-900">৳ {p.price}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-amber-600 block font-bold">Point Buy</span>
+                      <span className="text-xs font-black text-amber-500">🪙 {p.pointsCost} Pts</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => addToCart(p)}
+                    className="w-full bg-[#F41B5E] hover:bg-rose-600 text-white font-extrabold text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <ShoppingCart className="w-4 h-4" /> Add to Cart
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </main>
+      )}
+
+      {/* Visitor User Personal Dashboard */}
+      {currentView === 'user-dashboard' && (
+        <main className="max-w-4xl mx-auto px-4 py-8 w-full flex-grow space-y-6">
+          <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-rose-50 text-[#F41B5E] rounded-2xl flex items-center justify-center font-black text-lg">
+                {username[0]}
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-slate-900">{username}</h2>
+                <p className="text-xs text-slate-400 font-bold uppercase">Member Account Dashboard</p>
+              </div>
+            </div>
+            <div className="bg-gradient-to-r from-amber-400 to-amber-500 text-white p-4 rounded-2xl text-center shadow-md shrink-0 w-full sm:w-auto">
+              <span className="text-[10px] uppercase font-bold text-amber-50 block leading-none mb-1">Redeemable Points Balance</span>
+              <span className="text-2xl font-black">🪙 {userPoints} Points</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Action sidebar: activity list & Notifications */}
+            <div className="md:col-span-2 space-y-6">
+              
+              {/* Notification hub */}
+              <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+                  <Bell className="w-4 h-4 text-[#F41B5E]" /> Live Notification Alerts
+                </h3>
+                <div className="space-y-3">
+                  {notifications.map(n => (
+                    <div key={n.id} className={`p-3 rounded-2xl text-xs border ${n.unread ? 'bg-rose-50/20 border-rose-100 text-slate-800 font-extrabold' : 'bg-slate-50/50 border-slate-100 text-slate-500'}`}>
+                      <p>{n.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Point Redeem limits helper */}
+              <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <Wallet className="w-4 h-4 text-amber-500" /> Reward Redemption Rules
+                </h3>
+                <div className="p-4 bg-slate-50 rounded-2xl border flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-slate-700 block">৳200 Cash Value Discount Voucher</span>
+                    <span className="text-[10px] text-[#F41B5E] font-black">Requires 200 points minimum</span>
+                  </div>
+                  <button
+                    disabled={userPoints < 200}
+                    onClick={() => {
+                      setUserPoints(prev => prev - 200);
+                      triggerAlert('Redeem Success! Discount code dispatched to registered mail.');
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                      userPoints >= 200 ? 'bg-[#F41B5E] text-white hover:bg-rose-600 shadow-md' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
+                  >
+                    Redeem
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Password Change Simulator */}
+            <div className="md:col-span-1">
+              <form onSubmit={(e) => { e.preventDefault(); triggerAlert('Security Password updated successfully.'); setPassForm({ current: '', newPass: '' }); }} className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <Lock className="w-4 h-4 text-[#F41B5E]" /> Change Password
+                </h3>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-400">Current Password</label>
+                  <input
+                    type="password"
+                    value={passForm.current}
+                    onChange={(e) => setPassForm({ ...passForm, current: e.target.value })}
+                    placeholder="••••••••"
+                    className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-400">New Password</label>
+                  <input
+                    type="password"
+                    value={passForm.newPass}
+                    onChange={(e) => setPassForm({ ...passForm, newPass: e.target.value })}
+                    placeholder="••••••••"
+                    className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                    required
+                  />
+                </div>
+                <button type="submit" className="w-full bg-[#F41B5E] hover:bg-rose-600 text-white font-extrabold text-xs py-2 rounded-xl transition-colors shadow-sm">
+                  Update Password
+                </button>
+              </form>
+            </div>
+
+          </div>
+        </main>
+      )}
+
+      {/* Admin Dashboard statistics panel (ONLY ACCESSIBLE BY AUTHENTICATED ADMINISTRATOR ROLE) */}
+      {currentView === 'admin-dashboard' && userRole === 'admin' && (
+        <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow space-y-8 animate-fadeIn">
+          
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b pb-4">
+            <div>
+              <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+                <ShieldCheck className="w-6 h-6 text-[#F41B5E]" /> Admin Statistics & Moderation Control Panel
+              </h2>
+              <p className="text-xs text-slate-500">Restricted secure admin-only insights, pending moderation cues, and metrics graphs.</p>
+            </div>
+            <span className="bg-[#F41B5E]/10 text-[#F41B5E] border border-rose-200 px-3 py-1 rounded-full text-xs font-black tracking-widest uppercase">
+              Root Active
+            </span>
+          </div>
+
+          {/* Pending Approval Moderation Table Queue */}
+          <div className="bg-white border-2 border-dashed border-[#F41B5E]/30 p-6 rounded-3xl shadow-sm space-y-4">
+            <h3 className="text-xs uppercase font-black text-slate-500 tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-[#F41B5E]" /> Pending Brand Approvals Queue ({pendingBrands.length})
+            </h3>
+            {pendingBrands.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">No user brand indexes awaiting moderation queue approval.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendingBrands.map(pb => (
+                  <div key={pb.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-150 flex flex-col justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <img src={pb.logoUrl} alt="" className="w-10 h-10 rounded-full object-cover border" />
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">{pb.name}</p>
+                        <span className="text-[10px] text-slate-400 font-bold block">Proposed default: Other</span>
                       </div>
-                    )}
+                    </div>
+                    
+                    {/* Choose route and submit */}
+                    <div className="flex items-center gap-2 mt-2">
+                      <select id={`catSelect-${pb.id}`} className="bg-white border p-1.5 rounded-lg text-xs flex-1">
+                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                      <button
+                        onClick={() => {
+                          const val = document.getElementById(`catSelect-${pb.id}`).value;
+                          approveBrand(pb, val, '');
+                        }}
+                        className="bg-[#F41B5E] text-white font-bold text-xs px-3 py-1.5 rounded-lg"
+                      >
+                        Approve
+                      </button>
+                      <button onClick={() => rejectBrand(pb.id)} className="text-slate-400 hover:text-rose-500">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Real Statistics Charts visual mapping with pure Tailwind */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Country District Demographic Mapping list */}
+            <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Traffic Geographic Locations</h3>
+              <div className="space-y-3.5">
+                {analyticsData.countries.map((c, i) => (
+                  <div key={i} className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-bold text-slate-700">{c.name}</span>
+                      <span className="text-slate-500 font-bold">{c.percentage}% ({c.count})</span>
+                    </div>
+                    <div className="w-full bg-slate-150 h-2 rounded-full overflow-hidden">
+                      <div className="bg-[#F41B5E] h-full" style={{ width: `${c.percentage}%` }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t pt-4 space-y-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Top Bangladeshi Districts:</span>
+                {analyticsData.districts.map((d, i) => (
+                  <div key={i} className="flex justify-between text-xs font-semibold text-slate-600">
+                    <span>{d.name} District</span>
+                    <span>{d.count} hits</span>
                   </div>
                 ))}
               </div>
             </div>
-          </aside>
 
-          {/* Main Workspace section with Search Result listings */}
-          <section className="lg:col-span-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-              <h2 className="text-xs uppercase tracking-widest font-black text-slate-400 flex items-center gap-2">
-                <span className="w-1.5 h-3.5 bg-[#F41B5E] rounded-full"></span> Insights & Fault Indices
-              </h2>
-              
-              <button
-                onClick={() => {
-                  setEditTarget(null);
-                  setProdName('');
-                  setProdDesc('');
-                  setProdFaults('');
-                  setShowProductForm(true);
-                }}
-                className="bg-[#F41B5E] hover:bg-rose-600 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 scale-102"
-              >
-                <Plus className="w-4 h-4 text-white" />
-                Index New Model (+10 Pts)
-              </button>
+            {/* Age demographies */}
+            <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Age Group Distributions</h3>
+              <div className="space-y-3.5">
+                {analyticsData.ageDemographics.map((age, i) => (
+                  <div key={i} className="space-y-1">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span className="text-slate-700">Ages {age.range}</span>
+                      <span className="text-slate-500">{age.percentage}%</span>
+                    </div>
+                    <div className="w-full bg-slate-150 h-2 rounded-full overflow-hidden">
+                      <div className="bg-indigo-600 h-full" style={{ width: `${age.percentage}%` }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {filteredProducts.length === 0 ? (
-              /* Custom NOT AVAILABLE Page fallback with 10 Points reward mechanism */
-              <div className="bg-white border border-rose-100 rounded-3xl p-6 sm:p-10 text-center max-w-2xl mx-auto my-6 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 inset-x-0 h-1.5 bg-[#F41B5E]"></div>
-                <AlertTriangle className="w-16 h-16 text-[#F41B5E] mx-auto mb-4 animate-bounce" />
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900 mb-2">"{searchQuery}" Is Not Indexed Yet</h3>
-                <p className="text-xs sm:text-sm text-slate-500 mb-6 max-w-md mx-auto leading-relaxed">
-                  Our community has not reported any faults for this model yet. Be the first to start the index and earn premium points!
-                </p>
-                
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 inline-block mb-6">
-                  <span className="text-xs font-black text-[#F41B5E] uppercase tracking-wider block">Reward Pool Active</span>
-                  <span className="text-base sm:text-lg font-bold text-slate-800">✨ Earn 🪙 10 points instantly</span>
-                </div>
-
+            {/* Gender demographics & general performance overview chart */}
+            <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Gender Breakdown Ratio</h3>
+              <div className="flex items-center justify-around h-32 pt-2 text-center">
                 <div>
-                  <button
-                    onClick={() => {
-                      setProdName(toTitleCase(searchQuery));
-                      setProdDesc(`Community reported and indexed overview for ${searchQuery}.`);
-                      setProdFaultScore(25);
-                      setTimelineVal([5, 12, 20, 35, 50]);
-                      setProdFaults('');
-                      setShowProductForm(true);
-                    }}
-                    className="bg-[#F41B5E] hover:bg-rose-600 text-white font-black text-xs sm:text-sm px-6 py-3 rounded-xl transition-all shadow-lg shadow-rose-200 inline-flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4 text-white" />
-                    Index New Product (+10 Points)
-                  </button>
+                  <div className="text-3xl font-black text-indigo-500">{analyticsData.gender.male}%</div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Male</span>
+                </div>
+                <div className="border-r h-16 border-slate-150"></div>
+                <div>
+                  <div className="text-3xl font-black text-pink-500">{analyticsData.gender.female}%</div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Female</span>
                 </div>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {filteredProducts.map(prod => {
-                  const brand = brands.find(b => b.id === prod.brandId);
-                  return (
-                    <div 
-                      key={prod.id}
-                      className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 relative overflow-hidden hover:shadow-xl hover:border-slate-300 transition-all duration-300 flex flex-col justify-between"
-                    >
-                      {/* Score Indicator Badge */}
-                      <div className="absolute top-5 right-5 flex items-center gap-2">
-                        <div className="text-right">
-                          <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">FAULT SCORE</div>
-                          <div className={`text-lg font-black ${
-                            prod.faultScore > 60 ? 'text-[#F41B5E]' : prod.faultScore > 30 ? 'text-amber-500' : 'text-emerald-500'
-                          }`}>
-                            -{prod.faultScore}%
-                          </div>
-                        </div>
-                      </div>
 
-                      <div>
-                        {/* Brand Identifier */}
-                        <div className="flex items-center gap-2 mb-3">
-                          {brand && (
-                            <img 
-                              src={brand.logoUrl} 
-                              alt={brand.name} 
-                              className="w-5 h-5 rounded-full object-cover border border-slate-100 shadow-sm" 
-                            />
-                          )}
-                          <span className="text-xs font-extrabold text-slate-400">{brand ? brand.name : 'Unknown Brand'}</span>
-                        </div>
-
-                        {/* Model Details */}
-                        <h3 className="text-lg font-black text-slate-900 mb-2 pr-14">{prod.modelName}</h3>
-                        <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed font-medium">{prod.description}</p>
-
-                        {/* Timeline curve simulation block */}
-                        <div className="mb-4 bg-[#FAF9FC] p-3.5 rounded-2xl border border-slate-100">
-                          <div className="text-[10px] text-slate-400 font-bold mb-2 flex justify-between">
-                            <span className="flex items-center gap-1"><TrendingDown className="w-3 h-3 text-indigo-500" /> Curve Fault Index</span>
-                            <span className="text-indigo-600 font-black">1m → 24m</span>
-                          </div>
-                          <div className="h-12 flex items-end gap-1.5 px-1">
-                            {prod.timeline.map((val, idx) => (
-                              <div key={idx} className="flex-1 flex flex-col items-center">
-                                <div 
-                                  style={{ height: `${Math.max(15, val)}%` }} 
-                                  className={`w-full rounded-t-md transition-all duration-500 ${
-                                    val > 70 ? 'bg-[#F41B5E]' : val > 40 ? 'bg-amber-400' : 'bg-indigo-500'
-                                  }`}
-                                ></div>
-                                <span className="text-[9px] text-slate-400 font-bold mt-1">
-                                  {idx === 0 ? '1m' : idx === 1 ? '3m' : idx === 2 ? '6m' : idx === 3 ? '12m' : '24m'}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Actionable Problem Items */}
-                        <div className="space-y-2 mb-4">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Top Verified Claims:</span>
-                          {prod.faults.slice(0, 3).map(fault => (
-                            <div key={fault.id} className="flex items-center justify-between text-xs bg-slate-50/60 px-3 py-2 rounded-xl border border-slate-100">
-                              <span className="text-slate-700 truncate pr-2 font-bold text-xs">{fault.text}</span>
-                              <button
-                                onClick={() => upvoteFault(prod.id, fault.id)}
-                                className="bg-rose-50 hover:bg-rose-100 text-[#F41B5E] font-extrabold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all text-[11px] border border-rose-100/50 shrink-0"
-                              >
-                                <span>-1</span>
-                                <span className="text-slate-400 font-bold text-[10px]">{fault.votes}</span>
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Inspector timeline detailed toggle controls */}
-                      <div className="border-t border-slate-100 pt-4 mt-2 flex flex-wrap items-center justify-between gap-2">
-                        <button 
-                          onClick={() => setActiveProduct(prod)}
-                          className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold px-4 py-2.5 rounded-xl transition-all border border-indigo-100/30 flex-grow sm:flex-grow-0 text-center"
-                        >
-                          Inspect Timeline Details
-                        </button>
-
-                        {userRole === 'admin' && (
-                          <div className="flex gap-1.5 ml-auto">
-                            <button 
-                              onClick={() => triggerEditProduct(prod)}
-                              className="bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 text-xs px-3 py-2 rounded-lg transition-all font-bold"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button 
-                              onClick={() => triggerDeleteProduct(prod.id)}
-                              className="bg-rose-50 hover:bg-rose-100 text-[#F41B5E] border border-rose-100 text-xs px-3 py-2 rounded-lg transition-all font-bold"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="border-t pt-4">
+                <div className="p-3.5 bg-rose-50/20 border border-rose-100 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-black text-slate-800">Global Tractions</span>
+                    <span className="text-[10px] font-bold text-slate-400 block mt-0.5">Updated every 5 minutes</span>
+                  </div>
+                  <span className="text-xs font-black text-[#F41B5E]">+{analyticsData.totalVisitors} Hits</span>
+                </div>
               </div>
-            )}
-          </section>
+            </div>
 
-        </div>
+          </div>
+        </main>
+      )}
 
-      </main>
-
-      {}
-      {/* SVG Detailed progression curve modal container */}
-      {activeProduct && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white border border-slate-100 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative my-8">
+      {/* Slide-over Sliding Cart Sidepanel */}
+      {isCartOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-end">
+          <div className="bg-white w-full max-w-md h-full shadow-2xl p-6 flex flex-col justify-between overflow-y-auto animate-slideIn">
             
-            {/* Modal Header */}
+            <div>
+              <div className="flex justify-between items-center border-b pb-4 mb-4">
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-1.5">
+                  <ShoppingCart className="w-5 h-5 text-[#F41B5E]" /> My Rewards Cart
+                </h3>
+                <button onClick={() => setIsCartOpen(false)} className="p-1 text-slate-400 hover:text-slate-800">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {cart.length === 0 ? (
+                <div className="text-center py-16 space-y-2">
+                  <ShoppingBag className="w-12 h-12 text-slate-300 mx-auto" />
+                  <p className="text-xs text-slate-400 font-bold">Your shopping cart is currently empty.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {cart.map(item => (
+                    <div key={item.id} className="flex gap-3 items-center border-b pb-3 border-slate-100">
+                      <img src={item.image} alt="" className="w-12 h-12 rounded-xl object-cover border" />
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="text-xs font-bold text-slate-800 truncate leading-snug">{item.name}</p>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">৳ {item.price} / 🪙 {item.pointsCost} Pts</span>
+                      </div>
+                      <button onClick={() => removeFromCart(item.id)} className="text-slate-400 hover:text-[#F41B5E]">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Payment totals summary metadata */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border space-y-2 text-xs">
+                    <div className="flex justify-between font-bold text-slate-600">
+                      <span>Store Subtotal:</span>
+                      <span>৳ {cart.reduce((sum, item) => sum + item.price, 0)}</span>
+                    </div>
+                    <div className="flex justify-between font-black text-[#F41B5E]">
+                      <span>Points Redeeming Cost:</span>
+                      <span>🪙 {cart.reduce((sum, item) => sum + item.pointsCost, 0)} Points</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {cart.length > 0 && (
+              <form onSubmit={handleCheckout} className="border-t pt-4 mt-6 space-y-3 text-left">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Checkout Specifications</span>
+                
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-500">Recipient Name</label>
+                  <input
+                    type="text"
+                    value={checkoutForm.name}
+                    onChange={(e) => setCheckoutForm({ ...checkoutForm, name: e.target.value })}
+                    placeholder="Recipient's Name"
+                    className="w-full bg-[#FAF9FC] border p-2 rounded-xl text-xs"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-500">Delivery Address</label>
+                  <input
+                    type="text"
+                    value={checkoutForm.address}
+                    onChange={(e) => setCheckoutForm({ ...checkoutForm, address: e.target.value })}
+                    placeholder="Full Home Address"
+                    className="w-full bg-[#FAF9FC] border p-2 rounded-xl text-xs"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-500">Phone Number (Bangladeshi 11 Digits)</label>
+                  <input
+                    type="text"
+                    value={checkoutForm.phone}
+                    onChange={(e) => setCheckoutForm({ ...checkoutForm, phone: e.target.value })}
+                    placeholder="01XXXXXXXXX"
+                    className="w-full bg-[#FAF9FC] border p-2 rounded-xl text-xs font-mono"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase font-bold text-slate-500 block">Payment Option</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50">
+                      <input 
+                        type="radio" 
+                        name="payment" 
+                        value="cod" 
+                        checked={checkoutForm.paymentMethod === 'cod'} 
+                        onChange={() => setCheckoutForm({ ...checkoutForm, paymentMethod: 'cod' })} 
+                        className="mb-1 accent-[#F41B5E]" 
+                      />
+                      COD
+                    </label>
+                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50">
+                      <input 
+                        type="radio" 
+                        name="payment" 
+                        value="points" 
+                        checked={checkoutForm.paymentMethod === 'points'} 
+                        onChange={() => setCheckoutForm({ ...checkoutForm, paymentMethod: 'points' })} 
+                        className="mb-1 accent-[#F41B5E]" 
+                      />
+                      Points
+                    </label>
+                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50">
+                      <input 
+                        type="radio" 
+                        name="payment" 
+                        value="online" 
+                        checked={checkoutForm.paymentMethod === 'online'} 
+                        onChange={() => setCheckoutForm({ ...checkoutForm, paymentMethod: 'online' })} 
+                        className="mb-1 accent-[#F41B5E]" 
+                      />
+                      Online
+                    </label>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-[#F41B5E] hover:bg-rose-600 text-white font-black text-xs py-2.5 rounded-xl transition-all shadow-md shadow-rose-200 mt-2 text-center block"
+                >
+                  Place Order Now
+                </button>
+              </form>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      {/* Inspect product detail popup panel with Affiliate Recommendations Alternative */}
+      {activeProduct && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-100 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative animate-fadeIn max-h-[90vh] overflow-y-auto">
+            
+            {/* Modal header alignment brand logo on Right side */}
             <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-slate-50/50">
               <div>
                 <span className="text-[10px] uppercase tracking-wider text-slate-400 font-extrabold block mb-1">Product Insight Timeline</span>
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900">{activeProduct.modelName}</h3>
               </div>
               <div className="flex items-center gap-4 ml-auto sm:ml-0">
-                
-                {/* Brand logo on the right-hand side */}
-                {activeProductBrand && (
-                  <div className="text-right flex items-center gap-2 bg-white px-3 py-1 rounded-xl border shadow-sm">
-                    <span className="text-xs font-black text-slate-700">{activeProductBrand.name}</span>
-                    <img src={activeProductBrand.logoUrl} alt="" className="w-8 h-8 rounded-full object-cover border" />
+                {brands.find(b => b.id === activeProduct.brandId) && (
+                  <div className="flex items-center gap-2 bg-white border px-3 py-1.5 rounded-2xl shadow-sm">
+                    <span className="text-xs font-black text-slate-700">{brands.find(b => b.id === activeProduct.brandId).name}</span>
+                    <img src={brands.find(b => b.id === activeProduct.brandId).logoUrl} alt="" className="w-8 h-8 rounded-full object-cover border" />
                   </div>
                 )}
-
-                <button 
-                  onClick={() => setActiveProduct(null)}
-                  className="bg-white hover:bg-slate-50 border border-slate-200 p-2 rounded-full text-slate-500 transition-all shadow-sm"
-                >
+                <button onClick={() => setActiveProduct(null)} className="p-1 bg-white hover:bg-slate-100 border rounded-full text-slate-400">
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* Content Body */}
-            <div className="p-6 space-y-6">
-              
-              {/* Fault index banner and summary */}
-              <div className="flex flex-col sm:flex-row items-center gap-6 bg-rose-50/40 p-4 rounded-2xl border border-rose-100/30">
-                <div className="text-center bg-white px-4 py-3 rounded-2xl border border-rose-200/50 shadow-sm w-full sm:w-auto shrink-0">
-                  <div className="text-[9px] text-[#F41B5E] font-black tracking-wider">MINUS-1 SCORE</div>
-                  <div className="text-3xl font-black text-[#F41B5E]">-{activeProduct.faultScore}%</div>
+            {/* Modal Body Contents */}
+            <div className="p-6 space-y-6 text-left">
+              <div className="flex flex-col sm:flex-row gap-4 bg-rose-50/30 p-4 rounded-2xl border border-rose-100">
+                <div className="bg-white p-3 rounded-xl text-center border shadow-sm shrink-0 w-full sm:w-auto">
+                  <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block">FAULT SCALE</span>
+                  <span className="text-2xl font-black text-[#F41B5E]">-{activeProduct.faultScore}%</span>
                 </div>
-                <div>
-                  <p className="text-xs sm:text-sm text-slate-600 italic font-medium">"{activeProduct.description}"</p>
-                </div>
+                <p className="text-xs text-slate-600 italic leading-relaxed font-semibold">"{activeProduct.description}"</p>
               </div>
 
-              {/* Curve chart progression container */}
-              <div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Fault Progression Index Curve</h4>
-                <div className="bg-[#FAF9FC] rounded-2xl p-4 border border-slate-100 relative h-48 flex items-end overflow-hidden">
-                  
-                  {/* Grid Lines */}
-                  <div className="absolute inset-x-0 top-0 h-full flex flex-col justify-between pointer-events-none p-4 opacity-10">
-                    <div className="border-b border-dashed border-slate-400 w-full"></div>
-                    <div className="border-b border-dashed border-slate-400 w-full"></div>
-                    <div className="border-b border-dashed border-slate-400 w-full"></div>
-                  </div>
-
-                  {/* Graphical Plot Lines */}
-                  <svg className="absolute inset-0 h-full w-full p-6" viewBox="0 0 100 100" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366F1" stopOpacity="0.35" />
-                        <stop offset="100%" stopColor="#6366F1" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    <path 
-                      d={`M 0,100 L 0,${100 - activeProduct.timeline[0]} L 25,${100 - activeProduct.timeline[1]} L 50,${100 - activeProduct.timeline[2]} L 75,${100 - activeProduct.timeline[3]} L 100,${100 - activeProduct.timeline[4]} L 100,100 Z`}
-                      fill="url(#curveGradient)"
-                    />
-                    <path 
+              {/* Dynamic SVG degradation curve */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Fault Index Progression Line Curve</span>
+                <div className="bg-[#FAF9FC] border p-4 rounded-3xl h-44 relative flex items-end">
+                  <svg className="absolute inset-0 h-full w-full p-4" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <path
                       d={`M 0,${100 - activeProduct.timeline[0]} L 25,${100 - activeProduct.timeline[1]} L 50,${100 - activeProduct.timeline[2]} L 75,${100 - activeProduct.timeline[3]} L 100,${100 - activeProduct.timeline[4]}`}
                       fill="none"
-                      stroke="#4F46E5"
+                      stroke="#F41B5E"
                       strokeWidth="3.5"
-                      strokeLinecap="round"
                     />
                   </svg>
-
-                  {/* Bottom Labels and percentage overlays */}
-                  <div className="relative z-10 w-full flex justify-between px-2">
+                  <div className="relative z-10 w-full flex justify-between">
                     {activeProduct.timeline.map((val, idx) => (
                       <div key={idx} className="text-center">
-                        <div className="bg-white shadow-sm border border-slate-100 px-2 py-1 rounded-lg text-[10px] sm:text-xs text-indigo-600 font-extrabold mb-1">
-                          {val}%
-                        </div>
-                        <div className="text-[9px] sm:text-[10px] text-slate-400 font-extrabold">
-                          {idx === 0 ? 'Immediate' : idx === 1 ? '3 Months' : idx === 2 ? '6 Months' : idx === 3 ? '1 Year' : '2 Years'}
-                        </div>
+                        <span className="text-xs font-black text-[#F41B5E] block">{val}%</span>
+                        <span className="text-[9px] text-slate-400 font-bold block">{['Init', '3m', '6m', '12m', '24m'][idx]}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* Live Claims list inside inspector */}
-              <div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Community Validation Hub</h4>
-                <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
-                  {activeProduct.faults.map(fault => (
-                    <div key={fault.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+              {/* Verified claim elements */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Top Observed Defects</span>
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                  {activeProduct.faults.map(f => (
+                    <div key={f.id} className="flex justify-between items-center text-xs bg-slate-50 border p-3 rounded-2xl">
                       <div>
-                        <p className="text-xs sm:text-sm text-slate-900 font-extrabold">{fault.text}</p>
-                        <span className="text-[10px] text-slate-400 font-bold">Verified by {fault.votes} owners</span>
+                        <span className="font-bold text-slate-800 block">{f.text}</span>
+                        <span className="text-[9px] text-slate-400">Confirmed by {f.votes} gadget owners</span>
                       </div>
-                      <button 
-                        onClick={() => upvoteFault(activeProduct.id, fault.id)}
-                        className="bg-[#F41B5E] hover:bg-rose-600 text-white font-extrabold px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all active:scale-95 text-xs shadow-md shadow-rose-100 w-full sm:w-auto justify-center"
+                      <button
+                        onClick={() => upvoteFault(activeProduct.id, f.id)}
+                        className="bg-[#F41B5E] text-white px-3 py-1.5 rounded-xl font-bold text-xs"
                       >
-                        <span>I Face This Too (-1)</span>
-                        <span className="bg-rose-900 text-rose-100 text-[10px] px-1.5 py-0.5 rounded-md font-bold">{fault.votes}</span>
+                        I Face This Too
                       </button>
                     </div>
                   ))}
                 </div>
               </div>
 
+              {/* Smart Affiliate Recommendations Integration Module */}
+              {suggestedAlternative ? (
+                <div className="bg-emerald-50/60 border border-emerald-100 p-4 rounded-2xl space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-800">
+                    <Sparkles className="w-5 h-5 text-emerald-600 animate-spin" />
+                    <span className="text-xs font-black uppercase tracking-wider">Recommended Better Alternative</span>
+                  </div>
+                  <div className="flex justify-between items-center bg-white p-3 rounded-xl border shadow-sm">
+                    <div>
+                      <p className="text-xs font-extrabold text-slate-800">{suggestedAlternative.modelName}</p>
+                      <span className="text-[10px] font-black text-emerald-500">Fault Score: only -{suggestedAlternative.faultScore}%</span>
+                    </div>
+                    
+                    {/* Simulated affiliate link redirection */}
+                    <a
+                      href={suggestedAlternative.affiliateLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs px-3 py-2 rounded-xl transition-colors inline-flex items-center gap-1.5"
+                    >
+                      Buy Alternative <ArrowRight className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-slate-50 border border-slate-150 p-4 rounded-2xl text-center">
+                  <span className="text-[10px] text-slate-400 font-extrabold uppercase">No Better Alternatives found within this Category.</span>
+                </div>
+              )}
+
             </div>
 
-            {/* Modal Footer Controls */}
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
-              <button 
-                onClick={() => setActiveProduct(null)}
-                className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold text-xs px-6 py-2.5 rounded-xl transition-all"
-              >
+            <div className="p-4 bg-slate-50 border-t flex justify-end">
+              <button onClick={() => setActiveProduct(null)} className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-xs px-5 py-2 rounded-xl transition-all">
                 Close Insights
               </button>
             </div>
@@ -1382,422 +1496,180 @@ export default function App() {
         </div>
       )}
 
-      {/* 1. Category Submission Modal (Only Accessible by Admin) */}
-      {showCatForm && userRole === 'admin' && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleCategorySubmit} className="bg-white border border-slate-100 p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl">
-            <h3 className="text-lg font-black text-slate-900">
-              {editTarget ? 'Edit Category' : 'Add New Category'}
-            </h3>
-            
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400 uppercase font-black">Category Name</label>
-              <input
-                type="text"
-                placeholder="e.g. Smartphones, Laptops, Software"
-                value={catName}
-                onChange={(e) => setCatName(e.target.value)}
-                className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:bg-white focus:border-[#F41B5E] focus:outline-none text-sm"
-                required
-              />
-              <p className="text-[10px] text-[#F41B5E] font-bold">Words automatically capitalize.</p>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button 
-                type="button" 
-                onClick={() => { setShowCatForm(false); setEditTarget(null); setCatName(''); }}
-                className="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold"
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit" 
-                className="bg-[#F41B5E] text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-rose-600"
-              >
-                {editTarget ? 'Save Changes' : 'Index Category'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* 2. Brand Submission Modal with upload requirements constraints */}
+      {/* Brand submission popup form with specific sizes limit descriptions */}
       {showBrandForm && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <form onSubmit={handleBrandSubmit} className="bg-white border border-slate-100 p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl my-8">
-            <h3 className="text-lg font-black text-slate-900">
-              {editTarget ? 'Edit Brand' : 'Suggest New Brand'}
-            </h3>
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handleBrandUpload} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left">
+            <h3 className="text-lg font-black text-slate-900">Suggest New Brand Model</h3>
             
-            {/* If user, auto-routed to "Other" default Category */}
-            {userRole === 'admin' ? (
-              <div className="space-y-1">
-                <label className="text-xs text-slate-400 uppercase font-black">Parent Category</label>
-                <select
-                  value={brandCatId}
-                  onChange={(e) => setBrandCatId(e.target.value)}
-                  className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:bg-white focus:border-[#F41B5E] focus:outline-none text-sm"
-                  required
-                >
-                  {categories.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/60 text-xs text-slate-500">
-                <p className="font-bold text-slate-700">Category Assigner:</p>
-                As a standard user, your brand suggestion will default to the <strong className="text-[#F41B5E]">Other</strong> category. Admin will index it into the correct category during approval!
-              </div>
-            )}
-
             <div className="space-y-1">
-              <label className="text-xs text-slate-400 uppercase font-black">Brand Name</label>
+              <label className="text-xs text-slate-400 uppercase font-black block">Brand Name</label>
               <input
                 type="text"
-                placeholder="e.g. nokia, apple, cat vpn"
                 value={brandName}
                 onChange={(e) => setBrandName(e.target.value)}
-                className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:bg-white focus:border-[#F41B5E] focus:outline-none text-sm"
+                placeholder="Nokia, Apple, Cat VPN etc"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                 required
               />
             </div>
 
-            {/* Brand Logo simulated image upload with sizing rules */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400 uppercase font-black block">Brand Logo Image Upload</label>
-              <div className="bg-slate-50 border border-slate-150 p-2.5 rounded-xl text-[10px] text-slate-500 font-semibold mb-2 leading-tight">
-                📐 Recommended Layout: <strong className="text-slate-700">Fixed 150x150 px</strong><br />
-                📦 File size limitation: Max <strong className="text-slate-700">200 KB</strong>
+            {/* Brand upload guidance limits details block */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-slate-400 uppercase font-black block">Brand Logo Image</label>
+              <div className="bg-rose-50 border border-rose-100/50 p-3 rounded-xl text-[10px] text-slate-600 font-semibold space-y-1">
+                <p className="font-extrabold text-[#F41B5E]">📐 Layout Guidelines:</p>
+                <p>• Recommended Square aspect ratio: <strong className="text-slate-800">Fixed 150x150 Pixels</strong></p>
+                <p>• Size Constraint: Maximum allowed size <strong className="text-slate-800">200 KB</strong></p>
               </div>
-              <div className="flex items-center gap-3">
-                <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 p-4 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
+              
+              <div className="flex items-center gap-3 mt-2">
+                <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-4 rounded-xl cursor-pointer flex flex-col items-center justify-center">
                   <Upload className="w-5 h-5 text-slate-400 mb-1" />
-                  <span className="text-[11px] text-slate-500 font-bold">Select Local File</span>
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={handleImageUploadChange} 
-                    className="hidden" 
-                  />
+                  <span className="text-[10px] font-bold text-slate-500">Select Local File</span>
+                  <input type="file" accept="image/*" onChange={handleImgUpload} className="hidden" />
                 </label>
                 {brandLogoPreview ? (
-                  <div className="w-16 h-16 rounded-xl border overflow-hidden shrink-0 bg-slate-50 flex items-center justify-center">
-                    <img src={brandLogoPreview} alt="Preview" className="w-full h-full object-cover" />
-                  </div>
+                  <img src={brandLogoPreview} alt="Preview" className="w-16 h-16 rounded-xl object-cover border bg-slate-50" />
                 ) : (
-                  <div className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center text-[10px] text-slate-400 font-bold">
-                    No logo
-                  </div>
+                  <div className="w-16 h-16 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex items-center justify-center text-[10px] text-slate-400 font-bold">No Image</div>
                 )}
               </div>
             </div>
 
-            {userRole !== 'admin' && (
-              <div className="bg-rose-50 text-[#F41B5E] p-3 rounded-xl text-[10px] font-bold flex items-center gap-2">
-                <Info className="w-4 h-4 shrink-0" />
-                <span>Your Brand suggestion will be queued for Admin verification before publishing live.</span>
-              </div>
-            )}
-
             <div className="flex justify-end gap-2 pt-2">
-              <button 
-                type="button" 
-                onClick={() => { setShowBrandForm(false); setEditTarget(null); setBrandName(''); setBrandLogoPreview(''); }}
-                className="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold"
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit" 
-                className="bg-[#F41B5E] text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-rose-600"
-              >
-                {editTarget ? 'Save Changes' : userRole === 'admin' ? 'Index Brand' : 'Submit for Verification'}
-              </button>
+              <button type="button" onClick={() => setShowBrandForm(false)} className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold">Cancel</button>
+              <button type="submit" className="bg-[#F41B5E] text-white px-4 py-2 rounded-xl text-xs font-bold">Submit for Review</button>
             </div>
           </form>
         </div>
       )}
 
-      {/* 3. Product Model Addition Modal (Admins or Not Available indexers) */}
+      {/* Product submission popup form */}
       {showProductForm && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleProductSubmit} className="bg-white border border-slate-100 p-6 rounded-3xl w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl">
-            <h3 className="text-lg font-black text-slate-900">
-              {editTarget ? 'Edit Product Model' : 'Index New Product Model'}
-            </h3>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <form onSubmit={handleProductUpload} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left">
+            <h3 className="text-lg font-black text-slate-900">Index New Product Model</h3>
+            <p className="text-[10px] text-amber-600 font-bold leading-relaxed">
+              Indexing a new, unlisted product will award you 🪙 10 points which you can spend on accessories in our store!
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-xs text-slate-400 uppercase font-black">Select Brand</label>
-                <select
-                  value={prodBrandId}
-                  onChange={(e) => setProdBrandId(e.target.value)}
-                  className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:bg-white focus:border-[#F41B5E] focus:outline-none text-sm"
-                  required
-                >
+                <label className="text-[10px] text-slate-400 uppercase font-black">Parent Brand</label>
+                <select value={prodBrandId} onChange={(e) => setProdBrandId(e.target.value)} className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" required>
                   <option value="">Select Brand</option>
-                  {brands.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
+                  {brands.filter(b => b.approved).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
-
               <div className="space-y-1">
-                <label className="text-xs text-slate-400 uppercase font-black">Model Name</label>
+                <label className="text-[10px] text-slate-400 uppercase font-black">Model Name</label>
                 <input
                   type="text"
-                  placeholder="e.g. nokia 1120 model, galaxy fold"
                   value={prodName}
                   onChange={(e) => setProdName(e.target.value)}
-                  className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:bg-white focus:border-[#F41B5E] focus:outline-none text-sm"
+                  placeholder="e.g. Galaxy Fold 5"
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs text-slate-400 uppercase font-black">Core Slogan / Error Summary</label>
+              <label className="text-xs text-slate-400 uppercase font-black block">Model Error Slogan Summary</label>
               <textarea
-                rows="2"
-                placeholder="Briefly state the primary real-life problem found on this model."
                 value={prodDesc}
                 onChange={(e) => setProdDesc(e.target.value)}
-                className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:bg-white focus:border-[#F41B5E] focus:outline-none text-sm"
+                placeholder="Briefly state the primary real-life defect found on this model."
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                rows="2"
               />
             </div>
 
-            {/* Custom progression curve editor */}
-            <div className="space-y-2 p-3 bg-slate-50 rounded-2xl border border-slate-100">
-              <label className="text-xs text-slate-500 uppercase font-black block">Progression curve (Performance Drop %)</label>
-              <div className="grid grid-cols-5 gap-2">
-                {timelineVal.map((v, i) => (
-                  <div key={i} className="text-center">
-                    <span className="text-[9px] text-slate-400 font-extrabold block mb-1">
-                      {i === 0 ? 'Immediate' : i === 1 ? '3m' : i === 2 ? '6m' : i === 3 ? '12m' : '24m'}
-                    </span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={v}
-                      onChange={(e) => {
-                        const nextTimeline = [...timelineVal];
-                        nextTimeline[i] = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
-                        setTimelineVal(nextTimeline);
-                      }}
-                      className="w-full bg-white text-[#F41B5E] text-center p-2 rounded-xl border border-slate-200 text-xs font-black focus:outline-none focus:border-[#F41B5E]"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs text-slate-400 uppercase font-black">General Fault Score (0 - 100%)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={prodFaultScore}
-                  onChange={(e) => setProdFaultScore(e.target.value)}
-                  className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:bg-white focus:border-[#F41B5E] focus:outline-none text-sm"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs text-slate-400 uppercase font-black">Specific Faults (Comma Separated)</label>
-                <input
-                  type="text"
-                  placeholder="Battery draining, Screen flickering, Wi-Fi dropping"
-                  value={prodFaults}
-                  onChange={(e) => setProdFaults(e.target.value)}
-                  className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:bg-white focus:border-[#F41B5E] focus:outline-none text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-[11px] text-amber-800 font-bold flex items-center gap-2">
-              <Coins className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>Indexing this model will instantly award you 🪙 10 community contribution points!</span>
-            </div>
-
             <div className="flex justify-end gap-2 pt-2">
-              <button 
-                type="button" 
-                onClick={() => { setShowProductForm(false); setEditTarget(null); }}
-                className="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold"
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit" 
-                className="bg-[#F41B5E] text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-rose-600"
-              >
-                {editTarget ? 'Save Changes' : 'Index Product Model (+10 Pts)'}
-              </button>
+              <button type="button" onClick={() => setShowProductForm(false)} className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold">Cancel</button>
+              <button type="submit" className="bg-[#F41B5E] text-white px-4 py-2 rounded-xl text-xs font-bold">Index Model (+10 Pts)</button>
             </div>
           </form>
         </div>
       )}
 
-      {/* 4. User Problem Report Modal with automated verification on existing products */}
-      {showUserProblemForm && (
+      {/* Problem submission popup form */}
+      {showProblemForm && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleUserProblemSubmit} className="bg-white border border-slate-100 p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl">
-            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-[#F41B5E]" />
-              Submit Product Fault Report
-            </h3>
-
-            {/* Step 1: Select Brand */}
+          <form onSubmit={handleProblemSubmission} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left">
+            <h3 className="text-lg font-black text-slate-900">Report Observed Product Bug</h3>
+            
             <div className="space-y-1">
-              <label className="text-xs text-slate-400 uppercase font-black block">Product Brand</label>
-              <select
-                value={postProbBrandId}
-                onChange={(e) => {
-                  setPostProbBrandId(e.target.value);
-                  setPostProbProductId('');
-                }}
-                className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:bg-white focus:border-[#F41B5E] focus:outline-none text-sm"
-                required
-              >
-                <option value="">Choose Brand</option>
-                {brands.filter(b => b.approved).map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
+              <label className="text-xs text-slate-400 uppercase font-black block">Choose Product Model</label>
+              <select value={probProduct} onChange={(e) => setProbProduct(e.target.value)} className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" required>
+                <option value="">Choose Model</option>
+                {products.map(p => <option key={p.id} value={p.id}>{p.modelName}</option>)}
               </select>
             </div>
 
-            {/* Step 2: Select Model */}
             <div className="space-y-1">
-              <label className="text-xs text-slate-400 uppercase font-black block">Model Name</label>
-              <select
-                value={postProbProductId}
-                onChange={(e) => setPostProbProductId(e.target.value)}
-                className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:bg-white focus:border-[#F41B5E] focus:outline-none text-sm"
-                required
-                disabled={!postProbBrandId}
-              >
-                <option value="">Select Indexed Model</option>
-                {products
-                  .filter(p => p.brandId === postProbBrandId)
-                  .map(p => (
-                    <option key={p.id} value={p.id}>{p.modelName}</option>
-                  ))}
+              <label className="text-xs text-slate-400 uppercase font-black block">Observed Bug / Issue</label>
+              <select value={probText} onChange={(e) => setProbText(e.target.value)} className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" required>
+                <option value="Battery Degradation & Fast Draining">Battery Degradation & Fast Draining</option>
+                <option value="UI Slowdown / Stutter Lags">UI Slowdown / Stutter Lags</option>
+                <option value="Overheating Under Moderate Load">Overheating Under Moderate Load</option>
+                <option value="Wi-Fi Connection Dropping">Wi-Fi Connection Dropping</option>
+                <option value="Other">Other</option>
               </select>
             </div>
 
-            {/* Step 3: Select Common Problem or Choose Other */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400 uppercase font-black block">Select Observed Defect/Issue</label>
-              <select
-                value={postProbDropdownValue}
-                onChange={(e) => setPostProbDropdownValue(e.target.value)}
-                className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:bg-white focus:border-[#F41B5E] focus:outline-none text-sm"
-                required
-              >
-                {commonPredefinedProblems.map((prob, idx) => (
-                  <option key={idx} value={prob}>{prob}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* If Other, custom type input (auto-formatted on submit) */}
-            {postProbDropdownValue === 'Other' && (
+            {probText === 'Other' && (
               <div className="space-y-1 animate-fadeIn">
                 <label className="text-xs text-slate-400 uppercase font-black block">Specify Custom Problem</label>
                 <input
                   type="text"
-                  placeholder="e.g. charging port loose, headphone jack crackle"
-                  value={postProbCustomValue}
-                  onChange={(e) => setPostProbCustomValue(e.target.value)}
-                  className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:bg-white focus:border-[#F41B5E] focus:outline-none text-sm"
+                  value={customProbText}
+                  onChange={(e) => setCustomProbText(e.target.value)}
+                  placeholder="e.g. Loose charging port connector"
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                   required
                 />
-                <p className="text-[9px] text-[#F41B5E] font-bold">Auto capitalization applies on submit.</p>
               </div>
             )}
 
-            <div className="bg-rose-50 text-[#F41B5E] p-3 rounded-xl text-[10px] font-bold flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 shrink-0 text-[#F41B5E]" />
-              <span>Reporting a fault instantly updates our database and submits your auto-verification (-1)!</span>
-            </div>
-
             <div className="flex justify-end gap-2 pt-2">
-              <button 
-                type="button" 
-                onClick={() => { setShowUserProblemForm(false); }}
-                className="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold"
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit" 
-                className="bg-[#F41B5E] text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-rose-600"
-              >
-                Submit Claim Report (+5 Pts)
-              </button>
+              <button type="button" onClick={() => setShowProblemForm(false)} className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold">Cancel</button>
+              <button type="submit" className="bg-[#F41B5E] text-white px-4 py-2 rounded-xl text-xs font-bold">Submit Fault (+5 Pts)</button>
             </div>
           </form>
         </div>
       )}
 
-      {/* 5. User Registration & Login Auth Modal */}
-      {authModal.isOpen && (
+      {/* Registration and Login modal popup */}
+      {showAuthModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-100 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl">
-            
-            {/* Tab switch control header */}
+          <div className="bg-white border rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl text-left">
             <div className="flex border-b">
-              <button
-                type="button"
-                onClick={() => setAuthModal({ ...authModal, tab: 'login' })}
-                className={`flex-1 py-4 text-center text-xs font-black uppercase tracking-wider ${
-                  authModal.tab === 'login' ? 'border-b-2 border-[#F41B5E] text-[#F41B5E]' : 'text-slate-400'
-                }`}
-              >
-                Login
-              </button>
-              <button
-                type="button"
-                onClick={() => setAuthModal({ ...authModal, tab: 'register' })}
-                className={`flex-1 py-4 text-center text-xs font-black uppercase tracking-wider ${
-                  authModal.tab === 'register' ? 'border-b-2 border-[#F41B5E] text-[#F41B5E]' : 'text-slate-400'
-                }`}
-              >
-                Register
-              </button>
+              <button onClick={() => setAuthTab('login')} className={`flex-1 py-4 text-center text-xs font-black uppercase tracking-wider ${authTab === 'login' ? 'border-b-2 border-[#F41B5E] text-[#F41B5E]' : 'text-slate-400'}`}>Login</button>
+              <button onClick={() => setAuthTab('register')} className={`flex-1 py-4 text-center text-xs font-black uppercase tracking-wider ${authTab === 'register' ? 'border-b-2 border-[#F41B5E] text-[#F41B5E]' : 'text-slate-400'}`}>Register</button>
             </div>
 
             <form onSubmit={handleAuthSubmit} className="p-6 space-y-4">
-              {authModal.tab === 'login' ? (
+              {authTab === 'login' ? (
                 <>
                   <div className="space-y-1">
                     <label className="text-xs text-slate-400 font-bold uppercase">Email Address / Username</label>
                     <input
                       type="text"
-                      placeholder="e.g. contributor@gmail.com"
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#F41B5E] text-sm"
+                      placeholder="e.g. rashedul@gmail.com"
+                      value={checkoutForm.name}
+                      onChange={(e) => setCheckoutForm({ ...checkoutForm, name: e.target.value })}
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                       required
                     />
                   </div>
                   <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <label className="text-xs text-slate-400 font-bold uppercase">Password</label>
-                      <span className="text-[10px] text-slate-400">Optional for demo</span>
-                    </div>
+                    <label className="text-xs text-slate-400 font-bold uppercase">Password</label>
                     <input
                       type="password"
                       placeholder="••••••••"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#F41B5E] text-sm"
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                       required
                     />
                   </div>
@@ -1809,41 +1681,31 @@ export default function App() {
                     <input
                       type="text"
                       placeholder="John Doe"
-                      value={registerUsername}
-                      onChange={(e) => setRegisterUsername(e.target.value)}
-                      className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#F41B5E] text-sm"
+                      value={checkoutForm.name}
+                      onChange={(e) => setCheckoutForm({ ...checkoutForm, name: e.target.value })}
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                       required
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs text-slate-400 font-bold uppercase">Email Address</label>
-                    <input
-                      type="email"
-                      placeholder="john@example.com"
-                      value={registerEmail}
-                      onChange={(e) => setRegisterEmail(e.target.value)}
-                      className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#F41B5E] text-sm"
-                      required
-                    />
-                  </div>
-                  {/* Dynamic Country Selector addition */}
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-400 font-bold uppercase">Country</label>
+                    <label className="text-xs text-slate-400 font-bold uppercase">Home Country Location</label>
                     <input
                       type="text"
                       placeholder="e.g. Bangladesh"
-                      value={registerCountry}
-                      onChange={(e) => setRegisterCountry(e.target.value)}
-                      className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#F41B5E] text-sm"
+                      value={checkoutForm.address}
+                      onChange={(e) => setCheckoutForm({ ...checkoutForm, address: e.target.value })}
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                       required
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs text-slate-400 font-bold uppercase">Choose Password</label>
+                    <label className="text-xs text-slate-400 font-bold uppercase">Phone Contact</label>
                     <input
-                      type="password"
-                      placeholder="••••••••"
-                      className="w-full bg-[#FAF9FC] text-slate-900 p-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#F41B5E] text-sm"
+                      type="text"
+                      placeholder="01XXXXXXXXX"
+                      value={checkoutForm.phone}
+                      onChange={(e) => setCheckoutForm({ ...checkoutForm, phone: e.target.value })}
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                       required
                     />
                   </div>
@@ -1851,104 +1713,18 @@ export default function App() {
               )}
 
               <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setAuthModal({ isOpen: false, tab: 'login' })}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl text-xs font-bold transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-[#F41B5E] hover:bg-rose-600 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-rose-200"
-                >
-                  {authModal.tab === 'login' ? 'Confirm Login' : 'Register Account'}
-                </button>
+                <button type="button" onClick={() => setShowAuthModal(false)} className="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-xl text-xs font-bold text-center">Cancel</button>
+                <button type="submit" className="flex-1 bg-[#F41B5E] text-white py-2.5 rounded-xl text-xs font-bold text-center shadow-md shadow-rose-200">{authTab === 'login' ? 'Sign In' : 'Register'}</button>
               </div>
             </form>
-
           </div>
         </div>
       )}
 
-      {/* 6. Points Wallet & Redeem Modal */}
-      {showWalletModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-100 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative">
-            
-            {/* Modal Header */}
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <div className="flex items-center gap-2">
-                <Wallet className="w-5 h-5 text-amber-500" />
-                <h3 className="text-lg font-black text-slate-900">Your Rewards Wallet</h3>
-              </div>
-              <button 
-                onClick={() => setShowWalletModal(false)}
-                className="bg-white hover:bg-slate-50 border border-slate-200 p-1.5 rounded-full text-slate-500 transition-all shadow-sm"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Wallet Contents */}
-            <div className="p-6 space-y-6">
-              
-              {/* Balance Box */}
-              <div className="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-5 rounded-2xl shadow-md text-center">
-                <span className="text-xs font-extrabold uppercase tracking-widest text-amber-100 block mb-1">Total Redeemable Points</span>
-                <span className="text-4xl font-black">🪙 {userPoints} Pts</span>
-                <p className="text-[10px] text-amber-100 mt-2">Earn 10 points for indexing products, 5 points for verified bug reports.</p>
-              </div>
-
-              {/* Reward Options */}
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available Redemptions</h4>
-                
-                {/* Reward Option 1 with 200 points locked restriction */}
-                <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-bold text-slate-800 block">Upcoming Product Discount Voucher</span>
-                    <span className="text-[10px] text-[#F41B5E] font-black">Requires 200 points</span>
-                  </div>
-                  <button
-                    disabled={userPoints < 200}
-                    onClick={() => {
-                      setUserPoints(p => p - 200);
-                      triggerNotification('Discount voucher generated successfully! Check your email.', 'success');
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      userPoints >= 200 
-                        ? 'bg-[#F41B5E] hover:bg-rose-600 text-white shadow-md' 
-                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    }`}
-                  >
-                    Redeem
-                  </button>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
-              <button 
-                onClick={() => setShowWalletModal(false)}
-                className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold text-xs px-5 py-2 rounded-xl transition-all"
-              >
-                Close Wallet
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {}
-      {/* Comprehensive Premium Footer */}
-      <footer className="bg-[#1E202B] text-slate-400 pt-16 pb-8 border-t border-slate-800 w-full mt-16 text-sm">
+      {/* Complete Site Footer */}
+      <footer className="bg-[#1E202B] text-slate-400 pt-16 pb-8 border-t border-slate-800 mt-16 text-xs text-left w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
           
-          {/* Logo & Philosophy Column */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="bg-[#F41B5E] text-white font-black text-lg w-8 h-8 rounded-lg flex items-center justify-center shadow-lg">
@@ -1958,81 +1734,56 @@ export default function App() {
                 Check<span className="text-[#F41B5E]">Minus1</span>
               </h2>
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed font-medium">
-              We believe in truth over sponsorship. CheckMinus1 indexes real-life bugs, slowdown timelines, and battery drops so you make calculated decisions.
+            <p className="text-xs text-slate-400 leading-relaxed font-semibold">
+              Truth over sponsorship. CheckMinus1 indexes real-life bugs and product lifetimes so you can make calculated shopping decision.
             </p>
           </div>
 
-          {/* Quick Links Column */}
           <div className="space-y-3">
-            <h3 className="text-xs uppercase tracking-widest text-white font-black">Top Categories</h3>
-            <ul className="space-y-2 text-xs font-bold text-slate-400">
-              <li><button onClick={() => setSelectedCategory('cat-1')} className="hover:text-white transition-colors">Smartphones Index</button></li>
-              <li><button onClick={() => setSelectedCategory('cat-2')} className="hover:text-white transition-colors">Software & VPN Lag</button></li>
-              <li><button onClick={() => setSelectedCategory('cat-3')} className="hover:text-white transition-colors">Laptop Thermal Reports</button></li>
-              <li><button onClick={() => setSelectedCategory('cat-4')} className="hover:text-white transition-colors">Smart Watches Drain</button></li>
+            <h3 className="text-xs uppercase tracking-widest text-white font-black">Top Products</h3>
+            <ul className="space-y-2 text-xs font-bold">
+              <li><button onClick={() => { setSelectedCategory('cat-1'); setCurrentView('index'); }} className="hover:text-white transition-colors">Smartphones</button></li>
+              <li><button onClick={() => { setSelectedCategory('cat-2'); setCurrentView('index'); }} className="hover:text-white transition-colors">Software & VPN Lag</button></li>
+              <li><button onClick={() => { setSelectedCategory('cat-3'); setCurrentView('index'); }} className="hover:text-white transition-colors">Laptop Thermals</button></li>
             </ul>
           </div>
 
-          {/* Platform Statics Column */}
           <div className="space-y-3">
-            <h3 className="text-xs uppercase tracking-widest text-white font-black">Community Trust</h3>
-            <ul className="space-y-2 text-xs text-slate-400">
-              <li className="flex justify-between border-b border-slate-800 pb-1.5 font-bold">
+            <h3 className="text-xs uppercase tracking-widest text-white font-black">Platform Statistics</h3>
+            <ul className="space-y-2 text-xs font-bold">
+              <li className="flex justify-between border-b border-slate-800 pb-1">
                 <span>Indexed Models:</span>
-                <span className="text-white">500+ Active</span>
+                <span className="text-white">500+ Live</span>
               </li>
-              <li className="flex justify-between border-b border-slate-800 pb-1.5 font-bold">
+              <li className="flex justify-between border-b border-slate-800 pb-1">
                 <span>Verified Claims:</span>
-                <span className="text-white">10k+ Voted</span>
+                <span className="text-white">10k+ Registered</span>
               </li>
-              <li className="flex justify-between pb-1 text-slate-400 font-bold">
-                <span>Accuracy Rating:</span>
-                <span className="text-emerald-400">99.2% Approved</span>
+              <li className="flex justify-between">
+                <span>User Trust Level:</span>
+                <span className="text-emerald-400">99.2% Accuracy</span>
               </li>
             </ul>
           </div>
 
-          {/* Socials & Contact Column */}
           <div className="space-y-3">
-            <h3 className="text-xs uppercase tracking-widest text-white font-black">Follow The Truth</h3>
-            <p className="text-xs text-slate-400">Connect with fellow developers and consumer safety advocates.</p>
+            <h3 className="text-xs uppercase tracking-widest text-white font-black">Connect With Us</h3>
+            <p className="text-xs text-slate-400 font-semibold">Join developers and consumer safety advocates globally.</p>
             <div className="flex gap-3 text-white">
-              <a href="#" className="p-2 rounded-lg bg-slate-800 hover:bg-[#F41B5E] hover:scale-105 transition-all text-slate-300" aria-label="Twitter">
-                <Twitter className="w-4 h-4" />
-              </a>
-              <a href="#" className="p-2 rounded-lg bg-slate-800 hover:bg-[#F41B5E] hover:scale-105 transition-all text-slate-300" aria-label="GitHub">
-                <Github className="w-4 h-4" />
-              </a>
-              <a href="#" className="p-2 rounded-lg bg-slate-800 hover:bg-[#F41B5E] hover:scale-105 transition-all text-slate-300" aria-label="Website">
-                <Globe className="w-4 h-4" />
-              </a>
+              <a href="#" className="p-2 rounded-lg bg-slate-800 hover:bg-[#F41B5E] transition-colors"><X className="w-4 h-4" /></a>
+              <a href="#" className="p-2 rounded-lg bg-slate-800 hover:bg-[#F41B5E] transition-colors"><Github className="w-4 h-4" /></a>
+              <a href="#" className="p-2 rounded-lg bg-slate-800 hover:bg-[#F41B5E] transition-colors"><Globe className="w-4 h-4" /></a>
             </div>
           </div>
 
         </div>
 
-        {/* Lower footer copyright info */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-800 mt-10 pt-6 text-center text-xs text-slate-500 font-bold">
-          <p>© 2026 CheckMinus1. All rights reserved. Crowd-sourced with ultimate community integrity.</p>
-          <p className="mt-1 text-slate-600">Making product insights transparent, one verified fault index at a time.</p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-800 mt-10 pt-6 text-center text-[11px] text-slate-500 font-bold space-y-1">
+          <p>© 2026 CheckMinus1. All rights reserved. Crowdsourced with ultimate community integrity.</p>
+          <p className="text-slate-600">Making device insights transparent, one verified fault index at a time.</p>
         </div>
       </footer>
 
     </div>
   );
 }
-
-useEffect(() => {
-  const loadData = async () => {
-    const { data: cats } = await supabase.from('categories').select('*');
-    if (cats) setCategories(cats);
-
-    const { data: brnds } = await supabase.from('brands').select('*');
-    if (brnds) setBrands(brnds);
-
-    const { data: prods } = await supabase.from('products').select('*');
-    if (prods) setProducts(prods);
-  };
-  loadData();
-}, []);
