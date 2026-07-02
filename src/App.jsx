@@ -1708,6 +1708,15 @@ export default function App() {
                       required
                     />
                   </div>
+                  <div className="space-y-1">
+                      <label className="text-xs text-slate-400 font-bold uppercase">Password</label>
+                      <input
+                        type="password"
+                        placeholder="••••••••"
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                        required
+                      />
+                    </div>
                 </>
               )}
 
