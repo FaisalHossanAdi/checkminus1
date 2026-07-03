@@ -27,21 +27,21 @@ import {
   Edit3,
   Eye,
   EyeOff,
-  Download,
   Users,
-  Settings,
-  ShieldAlert,
   FileSpreadsheet,
   CheckSquare,
   Square,
-  Database
+  Database,
+  ThumbsUp,
+  Award,
+  ChevronRight,
+  Info
 } from 'lucide-react';
 
 // We dynamically resolve or fallback to a mock client to support compilation in a single-file sandbox
 const supabase = (typeof window !== 'undefined' && window.supabase) ? window.supabase : {
   auth: {
     signInWithPassword: async ({ email, password }) => {
-      // Direct local login lookup for testing if local users exist
       return { data: { user: { id: 'u-1', email } }, error: null };
     },
     signUp: async ({ email, password }) => {
@@ -391,6 +391,7 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedBrand, setSelectedBrand] = useState('all');
   const [activeProduct, setActiveProduct] = useState(null);
+  const [hoverTimelineIndex, setHoverTimelineIndex] = useState(null);
   
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [showBrandForm, setShowBrandForm] = useState(false);
@@ -440,7 +441,6 @@ export default function App() {
       try {
         setDbStatus('connecting');
 
-        // Helper function to query safe DB states without breaking on single table fail
         const fetchTable = async (tableName) => {
           try {
             const { data, error } = await supabase.from(tableName).select('*');
@@ -540,7 +540,7 @@ export default function App() {
         if (type === 'Index') updatedActivity.modelsIndexed = (updatedActivity.modelsIndexed || 0) + 1;
         if (type === 'Vote') updatedActivity.votesCast = (updatedActivity.votesCast || 0) + 1;
 
-        const updatedPoints = u.points + (type === 'Index' ? 10 : type === 'Report' ? 5 : 0);
+        const updatedPoints = u.points + (type === 'Index' ? 10 : type === 'Report' ? 5 : 1);
         updatedUserObj = { ...u, activity: updatedActivity, points: updatedPoints };
         return updatedUserObj;
       }
@@ -579,9 +579,8 @@ export default function App() {
           return;
         }
 
-        // Mock lookup if user is local fallback admin
         let fallbackRole = 'user';
-        let fallbackName = emailOrUser;
+        let fallbackName = emailOrUser.split('@')[0];
         if (emailOrUser.toLowerCase().includes('admin')) {
           fallbackRole = 'admin';
           fallbackName = 'Administrator';
@@ -589,7 +588,7 @@ export default function App() {
 
         setIsLoggedIn(true);
         setUserRole(fallbackRole);
-        setUsername(fallbackName);
+        setUsername(toTitleCase(fallbackName));
         setCurrentUserId(authData?.user?.id || 'u-admin');
         
         if (fallbackRole === 'admin') {
@@ -875,7 +874,7 @@ export default function App() {
       categoryId: prodCatId, 
       modelName: formattedModel,
       faultScore: 10, 
-      timeline: [5, 10, 15, 20, 25],
+      timeline: [5, 12, 18, 25, 32],
       description: prodDesc || 'No user-submitted description provided yet.',
       affiliateLink: 'https://amazon.com/s?k=' + encodeURIComponent(formattedModel),
       imageUrl: prodImagePreview || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300', 
@@ -1282,7 +1281,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#FAF9FC] text-slate-800 font-sans flex flex-col justify-between relative overflow-x-hidden text-left animate-fadeIn">
       
-      {/* Background radial blobs */}
+      {/* Background decoration elements */}
       <div className="absolute top-0 inset-x-0 h-[600px] bg-gradient-to-b from-indigo-50/40 via-[#F5F2F7] to-transparent pointer-events-none -z-10" />
       <div className="absolute top-20 left-10 w-96 h-96 rounded-full bg-violet-100/50 blur-3xl pointer-events-none -z-10" />
       <div className="absolute top-40 right-10 w-96 h-96 rounded-full bg-rose-100/30 blur-3xl pointer-events-none -z-10" />
@@ -1294,7 +1293,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Header bar */}
+      {}
       <header className="border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-40 px-4 py-3.5 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           
@@ -1307,7 +1306,7 @@ export default function App() {
                 Check<span className="text-[#F41B5E]">Minus1</span>
                 {dbStatus === 'connected' ? (
                   <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black tracking-widest px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <Database className="w-2.5 h-2.5" /> LIVE
+                    <Database className="w-2.5 h-2.5 animate-pulse" /> LIVE
                   </span>
                 ) : (
                   <span className="bg-amber-100 text-amber-800 text-[9px] font-black tracking-widest px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -1328,7 +1327,7 @@ export default function App() {
               placeholder="Search Samsung, MacBook, Cat VPN..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#FAF9FC] text-slate-800 placeholder-slate-400 pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:border-[#F41B5E] focus:bg-white focus:outline-none transition-all text-xs"
+              className="w-full bg-[#FAF9FC] text-slate-800 placeholder-slate-400 pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:border-[#F41B5E] focus:bg-white focus:outline-none transition-all text-xs shadow-inner"
             />
             {fuzzyBrands.length > 0 && (
               <div className="absolute top-11 left-0 right-0 bg-white border border-slate-100 rounded-xl shadow-xl z-50 p-2 text-xs">
@@ -1351,7 +1350,7 @@ export default function App() {
             <button 
               onClick={() => setCurrentView('store')}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                currentView === 'store' ? 'bg-[#F41B5E] text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                currentView === 'store' ? 'bg-[#F41B5E] text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
               }`}
             >
               <ShoppingBag className="w-4 h-4" />
@@ -1362,7 +1361,7 @@ export default function App() {
               <button
                 onClick={() => setCurrentView(userRole === 'admin' ? 'admin-dashboard' : 'user-dashboard')}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                  ['user-dashboard', 'admin-dashboard'].includes(currentView) ? 'bg-[#F41B5E] text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  ['user-dashboard', 'admin-dashboard'].includes(currentView) ? 'bg-[#F41B5E] text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 {userRole === 'admin' ? <ShieldCheck className="w-4 h-4" /> : <User className="w-4 h-4" />}
@@ -1403,11 +1402,11 @@ export default function App() {
         </div>
       </header>
 
-      {}
+      {/* Thank you Order view */}
       {currentView === 'thank-you' && lastOrderDetails && (
         <div className="max-w-2xl mx-auto my-16 p-8 bg-white border border-slate-100 rounded-3xl shadow-2xl text-center animate-fadeIn">
           <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-10 h-10" />
+            <CheckCircle className="w-10 h-10 animate-scaleIn" />
           </div>
           <h2 className="text-3xl font-black text-slate-900 mb-2">Thank You For Your Order!</h2>
           <p className="text-sm text-slate-500 mb-6">Your order has been recorded successfully and is currently being processed.</p>
@@ -1435,32 +1434,34 @@ export default function App() {
         </div>
       )}
 
+      {}
       {/* Landing Index View */}
       {currentView === 'index' && (
         <>
           <section className="max-w-7xl mx-auto w-full px-4 pt-6 sm:px-6 lg:px-8">
             <div className="relative rounded-3xl overflow-hidden h-[240px] sm:h-[300px] shadow-lg border border-slate-100 group">
               <div 
-                className="absolute inset-0 bg-cover bg-center filter brightness-[0.5] transition-all"
+                className="absolute inset-0 bg-cover bg-center filter brightness-[0.5] transition-all duration-700 group-hover:scale-105"
                 style={{ backgroundImage: `url(https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80)` }}
               />
-              <div className="absolute inset-0 flex flex-col justify-center p-8 text-white z-10">
-                <span className="self-start bg-[#F41B5E] text-[9px] font-black uppercase px-2.5 py-1 rounded-full mb-2 tracking-widest">
-                  Truth Indexes Only
+              <div className="absolute inset-0 bg-gradient-to-r from-[#11121c] via-transparent to-transparent z-10" />
+              <div className="absolute inset-0 flex flex-col justify-center p-8 text-white z-20">
+                <span className="self-start bg-[#F41B5E] text-[9px] font-black uppercase px-2.5 py-1 rounded-full mb-3 tracking-widest flex items-center gap-1">
+                  <Award className="w-3.5 h-3.5" /> Truth Indexes Only
                 </span>
-                <h2 className="text-2xl sm:text-3xl font-black mb-2 max-w-lg leading-tight">
+                <h2 className="text-2xl sm:text-4xl font-black mb-3 max-w-lg leading-tight">
                   Don't Buy Regrets! Check Hidden Product Faults First.
                 </h2>
-                <p className="text-xs text-slate-200 max-w-sm">
+                <p className="text-xs sm:text-sm text-slate-200 max-w-sm">
                   We crowdsource verified defects and product degradation timelines so you can make informed decisions.
                 </p>
               </div>
             </div>
           </section>
 
-          {}
+          {/* Quick Stats Grid */}
           <section className="max-w-7xl mx-auto w-full px-4 pt-6 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3">
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3 hover:shadow-md transition-all duration-300">
               <div className="p-2.5 rounded-xl bg-rose-50 text-[#F41B5E] shrink-0 h-10 w-10 flex items-center justify-center">
                 <Activity className="w-5 h-5" />
               </div>
@@ -1470,7 +1471,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3">
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3 hover:shadow-md transition-all duration-300">
               <div className="p-2.5 rounded-xl bg-violet-50 text-indigo-600 shrink-0 h-10 w-10 flex items-center justify-center">
                 <HeartCrack className="w-5 h-5" />
               </div>
@@ -1480,7 +1481,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3">
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3 hover:shadow-md transition-all duration-300">
               <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 shrink-0 h-10 w-10 flex items-center justify-center">
                 <Coins className="w-5 h-5" />
               </div>
@@ -1490,7 +1491,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3">
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3 hover:shadow-md transition-all duration-300">
               <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 shrink-0 h-10 w-10 flex items-center justify-center">
                 <Clock className="w-5 h-5" />
               </div>
@@ -1501,13 +1502,13 @@ export default function App() {
             </div>
           </section>
 
-          {}
+          {/* Filtering Section */}
           <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-150 pb-5 mb-8">
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => { setSelectedCategory('all'); setSelectedBrand('all'); }}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${
                     selectedCategory === 'all' ? 'bg-[#1E202B] text-white shadow-md' : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 shadow-sm'
                   }`}
                 >
@@ -1517,7 +1518,7 @@ export default function App() {
                   <button
                     key={cat.id}
                     onClick={() => { setSelectedCategory(cat.id); setSelectedBrand('all'); }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${
                       selectedCategory === cat.id ? 'bg-[#1E202B] text-white shadow-md' : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 shadow-sm'
                     }`}
                   >
@@ -1532,7 +1533,7 @@ export default function App() {
                     if (!isLoggedIn) { triggerAlert('Please sign in first to report defects.', 'error'); setAuthTab('login'); setShowAuthModal(true); return; }
                     setShowProblemForm(true);
                   }}
-                  className="bg-white hover:bg-slate-50 text-[#F41B5E] border border-slate-200 font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
+                  className="bg-white hover:bg-slate-100 text-[#F41B5E] border border-slate-200 font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
                   Report Fault
@@ -1550,7 +1551,6 @@ export default function App() {
               </div>
             </div>
 
-            {}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
               <aside className="lg:col-span-1">
                 <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm lg:sticky lg:top-24">
@@ -1572,7 +1572,7 @@ export default function App() {
                   <div className="flex flex-col gap-2 max-h-[500px] overflow-y-auto pr-1">
                     <button
                       onClick={() => setSelectedBrand('all')}
-                      className={`p-3 rounded-2xl border flex items-center justify-between transition-all ${
+                      className={`p-3 rounded-2xl border flex items-center justify-between transition-all duration-200 ${
                         selectedBrand === 'all' ? 'border-[#F41B5E] bg-rose-50/20 text-slate-800 font-extrabold' : 'border-slate-200/60 bg-white text-slate-700 hover:border-slate-300'
                       }`}
                     >
@@ -1583,7 +1583,7 @@ export default function App() {
                       <button
                         key={b.id}
                         onClick={() => setSelectedBrand(b.id)}
-                        className={`p-3 rounded-2xl border flex items-center gap-3 transition-all ${
+                        className={`p-3 rounded-2xl border flex items-center gap-3 transition-all duration-200 ${
                           selectedBrand === b.id ? 'border-[#F41B5E] bg-rose-50/20 text-slate-800 font-extrabold' : 'border-slate-200/60 bg-white text-slate-700 hover:border-slate-300'
                         }`}
                       >
@@ -1595,7 +1595,7 @@ export default function App() {
                 </div>
               </aside>
 
-              {}
+              {/* Indexed Products List */}
               <section className="lg:col-span-3">
                 {filteredProductsList.length === 0 ? (
                   <div className="bg-white border border-rose-100 rounded-3xl p-8 text-center max-w-xl mx-auto my-6 shadow-xl">
@@ -1626,7 +1626,7 @@ export default function App() {
                     {filteredProductsList.map(prod => {
                       const brand = brands.find(b => b.id === prod.brandId);
                       return (
-                        <div key={prod.id} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden">
+                        <div key={prod.id} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
                           <div>
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-2">
@@ -1642,10 +1642,12 @@ export default function App() {
                             </div>
 
                             {prod.imageUrl && (
-                              <img src={prod.imageUrl} alt={prod.modelName} className="w-full h-36 object-cover rounded-2xl mb-3 border border-slate-100" />
+                              <div className="w-full h-36 overflow-hidden rounded-2xl mb-3 border border-slate-100">
+                                <img src={prod.imageUrl} alt={prod.modelName} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                              </div>
                             )}
 
-                            <h3 className="text-lg font-black text-slate-900 mb-1">{prod.modelName}</h3>
+                            <h3 className="text-lg font-black text-slate-900 mb-1 group-hover:text-[#F41B5E] transition-colors">{prod.modelName}</h3>
                             <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed font-semibold">{prod.description}</p>
 
                             <div className="space-y-1.5 mb-4">
@@ -1654,10 +1656,10 @@ export default function App() {
                                   <span className="text-slate-700 font-bold truncate pr-1">{f.text}</span>
                                   <button
                                     onClick={() => upvoteFault(prod.id, f.id)}
-                                    className="bg-rose-50 hover:bg-rose-100 text-[#F41B5E] text-[10px] px-2 py-0.5 rounded-lg font-black flex items-center gap-1 shrink-0 transition-colors"
+                                    className="bg-rose-50 hover:bg-[#F41B5E] hover:text-white text-[#F41B5E] text-[10px] px-2.5 py-1 rounded-lg font-black flex items-center gap-1 shrink-0 transition-colors"
                                   >
-                                    <span>-1</span>
-                                    <span className="text-slate-400">{f.votes}</span>
+                                    <ThumbsUp className="w-3 h-3" />
+                                    <span>{f.votes}</span>
                                   </button>
                                 </div>
                               ))}
@@ -1666,7 +1668,7 @@ export default function App() {
 
                           <button
                             onClick={() => setActiveProduct(prod)}
-                            className="w-full bg-violet-50 hover:bg-violet-100 text-indigo-600 font-bold text-xs py-2 rounded-xl transition-colors text-center block"
+                            className="w-full bg-violet-50 hover:bg-indigo-600 hover:text-white text-indigo-600 font-bold text-xs py-2.5 rounded-xl transition-all duration-300 text-center block"
                           >
                             Inspect Timeline Details
                           </button>
@@ -1681,41 +1683,42 @@ export default function App() {
         </>
       )}
 
-      {}
+      {/* Rewards Store View */}
       {currentView === 'store' && (
         <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow animate-fadeIn">
-          <div className="flex justify-between items-center mb-8 border-b pb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b pb-5">
             <div>
               <h2 className="text-2xl font-black text-slate-900">CheckMinus1 Reward Store</h2>
-              <p className="text-xs text-slate-500">Spend your points or purchase verified protections.</p>
+              <p className="text-xs text-slate-500 mt-1">Spend your contribution points to redeem amazing rewards and premium accessories.</p>
             </div>
             {isLoggedIn && (
-              <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2 rounded-2xl flex items-center gap-1.5 text-xs font-black">
-                <Coins className="w-4 h-4 text-amber-500 animate-spin" />
-                <span>My Points Balance: {userPoints}</span>
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2.5 rounded-2xl flex items-center gap-2 text-xs font-black self-start">
+                <Coins className="w-4 h-4 text-amber-500 animate-bounce" />
+                <span>My Points Balance: {userPoints} Pts</span>
               </div>
             )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {activeStoreProducts.map(p => (
-              <div key={p.id} className="bg-white border border-slate-150 rounded-3xl overflow-hidden shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
-                <img src={p.image} alt={p.name} className="w-full h-48 object-cover border-b" />
+              <div key={p.id} className="bg-white border border-slate-150 rounded-3xl overflow-hidden shadow-sm flex flex-col justify-between hover:shadow-lg transition-all duration-300">
+                <div className="h-48 overflow-hidden border-b relative">
+                  <img src={p.image} alt={p.name} className="w-full h-full object-cover hover:scale-105 transition-all duration-500" />
+                  <span className="absolute top-3 right-3 bg-amber-400 text-white font-black text-[10px] px-2 py-1 rounded-full flex items-center gap-1 shadow">
+                    🪙 {p.pointsCost} Pts
+                  </span>
+                </div>
                 <div className="p-4 space-y-3 text-left">
-                  <h3 className="text-xs font-extrabold text-slate-800 line-clamp-1">{p.name}</h3>
+                  <h3 className="text-sm font-extrabold text-slate-800 line-clamp-1">{p.name}</h3>
                   <div className="flex justify-between items-center">
                     <div className="text-left">
                       <span className="text-[10px] text-slate-400 block font-bold">Standard Price</span>
                       <span className="text-sm font-black text-slate-900">৳ {p.price}</span>
                     </div>
-                    <div className="text-right">
-                      <span className="text-[10px] text-amber-600 block font-bold">Point Buy</span>
-                      <span className="text-xs font-black text-amber-500">🪙 {p.pointsCost} Pts</span>
-                    </div>
                   </div>
                   <button
                     onClick={() => addToCart(p)}
-                    className="w-full bg-[#F41B5E] hover:bg-rose-600 text-white font-extrabold text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    className="w-full bg-[#F41B5E] hover:bg-rose-600 text-white font-extrabold text-xs py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
                   >
                     <ShoppingCart className="w-4 h-4" /> Add to Cart
                   </button>
@@ -1726,13 +1729,13 @@ export default function App() {
         </main>
       )}
 
-      {}
+      {/* User Dashboard View */}
       {currentView === 'user-dashboard' && (
-        <main className="max-w-4xl mx-auto px-4 py-8 w-full flex-grow space-y-6 text-left">
+        <main className="max-w-4xl mx-auto px-4 py-8 w-full flex-grow space-y-6 text-left animate-fadeIn">
           <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-rose-50 text-[#F41B5E] rounded-2xl flex items-center justify-center font-black text-lg">
-                {username[0]}
+                {username ? username[0] : 'U'}
               </div>
               <div>
                 <h2 className="text-xl font-black text-slate-900">{username}</h2>
@@ -1786,7 +1789,7 @@ export default function App() {
                       }
                       triggerAlert('Redeem Success! Discount code dispatched to registered mail.');
                     }}
-                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-300 ${
                       userPoints >= 200 ? 'bg-[#F41B5E] text-white hover:bg-rose-600 shadow-md' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
                   >
@@ -1832,7 +1835,7 @@ export default function App() {
         </main>
       )}
 
-      {}
+      {/* Admin Dashboard View */}
       {currentView === 'admin-dashboard' && userRole === 'admin' && (
         <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow space-y-8 animate-fadeIn text-left">
           
@@ -1928,7 +1931,6 @@ export default function App() {
                 </div>
               </div>
 
-              {}
               <div className="overflow-x-auto border rounded-2xl">
                 <table className="w-full text-xs text-slate-600">
                   <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider text-[10px] font-black border-b">
@@ -2007,7 +2009,7 @@ export default function App() {
 
                         {expandedUserId === u.id && (
                           <tr>
-                            <td colSpan="7" className="p-4 bg-slate-50 border-t border-b text-slate-700">
+                            <td colSpan="7" className="p-4 bg-slate-50 border-t border-b text-slate-700 animate-slideDown">
                               <div className="space-y-3">
                                 <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Client Contributions Log History</h4>
                                 {u.activity?.details && u.activity.details.length > 0 ? (
@@ -2059,7 +2061,6 @@ export default function App() {
                 </button>
               </div>
 
-              {}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {categories.map(c => (
                   <div key={c.id} className="p-4 bg-slate-50 rounded-2xl border flex flex-col justify-between gap-3">
@@ -2134,7 +2135,7 @@ export default function App() {
                   <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest block">Proposed Brand Approvals Awaiting</span>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-left">
                     {pendingBrands.map(pb => (
-                      <div key={pb.id} className="bg-white p-3 rounded-xl border flex justify-between items-center">
+                      <div key={pb.id} className="bg-white p-3 rounded-xl border flex justify-between items-center animate-pulse">
                         <div className="flex items-center gap-2">
                           <img src={pb.logoUrl} alt="" className="w-8 h-8 rounded-full border object-cover" />
                           <p className="text-xs font-bold text-slate-800">{pb.name}</p>
@@ -2162,7 +2163,6 @@ export default function App() {
                 </div>
               )}
 
-              {}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {brands.map(b => {
                   const catParent = categories.find(c => c.id === b.categoryId);
@@ -2170,7 +2170,7 @@ export default function App() {
                     <div key={b.id} className="p-4 bg-slate-50 rounded-2xl border flex flex-col justify-between gap-3 text-left">
                       <div className="flex gap-3 justify-between items-start">
                         <div className="flex items-center gap-3">
-                          <img src={b.logoUrl} alt="" className="w-10 h-10 rounded-full border object-cover bg-white" />
+                          <img src={b.logoUrl} alt="" className="w-10 h-10 rounded-full border object-cover bg-white animate-fadeIn" />
                           <div>
                             <p className="font-black text-slate-800 text-sm">{b.name}</p>
                             <p className="text-[10px] text-slate-400 font-bold uppercase">{catParent ? catParent.name : 'Unassigned'}</p>
@@ -2238,7 +2238,6 @@ export default function App() {
                 </button>
               </div>
 
-              {}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-left">
                 {products.map(p => {
                   const br = brands.find(b => b.id === p.brandId);
@@ -2311,50 +2310,49 @@ export default function App() {
                 
                 <form onSubmit={handleAdminStoreProductUpload} className="space-y-3.5 text-xs">
                   <div className="space-y-1 font-semibold text-slate-600">
-                    <label className="font-bold text-slate-500 uppercase tracking-wide text-[10px]">Product Name</label>
+                    <label className="font-bold text-slate-505 uppercase tracking-wide text-[10px]">Product Name</label>
                     <input 
                       type="text" 
                       placeholder="e.g. Matte Glass Protector" 
                       value={storeNewName}
                       onChange={(e) => setStoreNewName(e.target.value)}
-                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl"
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl focus:outline-none focus:border-[#F41B5E] transition-colors"
                       required
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1 font-semibold text-slate-600">
-                      <label className="font-bold text-slate-500 uppercase tracking-wide text-[10px]">Price (৳ Taka)</label>
+                      <label className="font-bold text-slate-505 uppercase tracking-wide text-[10px]">Price (৳ Taka)</label>
                       <input 
                         type="number" 
                         placeholder="e.g. 500" 
                         value={storeNewPrice}
                         onChange={(e) => setStoreNewPrice(e.target.value)}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl font-mono"
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl font-mono focus:outline-none focus:border-[#F41B5E] transition-colors"
                         required
                       />
                     </div>
                     <div className="space-y-1 font-semibold text-slate-600">
-                      <label className="font-bold text-slate-500 uppercase tracking-wide text-[10px]">Points cost (🪙)</label>
+                      <label className="font-bold text-slate-505 uppercase tracking-wide text-[10px]">Points cost (🪙)</label>
                       <input 
                         type="number" 
                         placeholder="e.g. 70" 
                         value={storeNewPoints}
                         onChange={(e) => setStoreNewPoints(e.target.value)}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl font-mono"
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl font-mono focus:outline-none focus:border-[#F41B5E] transition-colors"
                         required
                       />
                     </div>
                   </div>
 
-                  {}
                   <div className="space-y-1.5 font-semibold text-slate-600">
-                    <label className="font-bold text-slate-500 uppercase tracking-wide text-[10px] block">Product Image Upload</label>
+                    <label className="font-bold text-slate-505 uppercase tracking-wide text-[10px] block">Product Image Upload</label>
                     
                     <div className="bg-rose-50/50 border border-rose-100 p-3 rounded-2xl space-y-1">
                       <span className="text-[10px] font-black text-[#F41B5E] uppercase block tracking-wider">📐 Auto-Scaler Guidelines</span>
-                      <p className="text-[9px] text-slate-500 leading-snug">
-                        • Recommened: <strong className="text-slate-700">300 x 300 Pixels (1:1 Ratio)</strong>.<br />
+                      <p className="text-[9px] text-slate-505 leading-snug">
+                        • Recommended: <strong className="text-slate-700">300 x 300 Pixels (1:1 Ratio)</strong>.<br />
                         • Over-scaled items will be <strong className="text-[#F41B5E]">cropped and compressed automatically</strong> inside Canvas.
                       </p>
                     </div>
@@ -2362,7 +2360,7 @@ export default function App() {
                     <div className="flex items-center gap-3 mt-1.5">
                       <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-4 rounded-2xl cursor-pointer flex flex-col items-center justify-center transition-all">
                         <Upload className="w-5 h-5 text-slate-400 mb-1" />
-                        <span className="text-[10px] font-bold text-slate-500">Pick Store Image</span>
+                        <span className="text-[10px] font-bold text-slate-505">Pick Store Image</span>
                         <input 
                           type="file" 
                           accept="image/*" 
@@ -2393,7 +2391,6 @@ export default function App() {
                 </form>
               </div>
 
-              {}
               <div className="lg:col-span-2 bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-4">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider border-b pb-2">
                   Live Store Products ({storeProducts.length})
@@ -2407,7 +2404,7 @@ export default function App() {
                         <div>
                           <p className="text-xs font-black text-slate-800 truncate max-w-[140px]">{sp.name}</p>
                           <p className="text-[10px] text-slate-400">৳{sp.price} | 🪙{sp.pointsCost} Pts</p>
-                          <span className={`text-[8px] font-black uppercase mt-1 px-1 rounded inline-block ${sp.active !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                          <span className={`text-[8px] font-black uppercase mt-1 px-1 rounded inline-block ${sp.active !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-505'}`}>
                             {sp.active !== false ? 'Active' : 'Inactive'}
                           </span>
                         </div>
@@ -2454,7 +2451,6 @@ export default function App() {
             </div>
           )}
 
-          {}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 text-left">
             <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Traffic Geographic Locations</h3>
@@ -2463,10 +2459,10 @@ export default function App() {
                   <div key={i} className="space-y-1">
                     <div className="flex justify-between text-xs">
                       <span className="font-bold text-slate-700">{c.name}</span>
-                      <span className="text-slate-500 font-bold">{c.percentage}% ({c.count})</span>
+                      <span className="text-slate-505 font-bold">{c.percentage}% ({c.count})</span>
                     </div>
                     <div className="w-full bg-slate-150 h-2 rounded-full overflow-hidden">
-                      <div className="bg-[#F41B5E] h-full" style={{ width: `${c.percentage}%` }}></div>
+                      <div className="bg-[#F41B5E] h-full animate-pulse" style={{ width: `${c.percentage}%` }}></div>
                     </div>
                   </div>
                 ))}
@@ -2490,7 +2486,7 @@ export default function App() {
                   <div key={i} className="space-y-1">
                     <div className="flex justify-between text-xs font-semibold">
                       <span className="text-slate-700">Ages {age.range}</span>
-                      <span className="text-slate-500">{age.percentage}%</span>
+                      <span className="text-slate-505">{age.percentage}%</span>
                     </div>
                     <div className="w-full bg-slate-150 h-2 rounded-full overflow-hidden">
                       <div className="bg-indigo-600 h-full" style={{ width: `${age.percentage}%` }}></div>
@@ -2515,7 +2511,7 @@ export default function App() {
               </div>
 
               <div className="border-t pt-4">
-                <div className="p-3.5 bg-rose-50/20 border border-rose-100 rounded-2xl flex items-center justify-between">
+                <div className="p-3.5 bg-rose-50/20 border border-rose-100 rounded-2xl flex items-center justify-between animate-fadeIn">
                   <div>
                     <span className="text-xs font-black text-slate-800">Global Tractions</span>
                     <span className="text-[10px] font-bold text-slate-400 block mt-0.5">Updated every 5 minutes</span>
@@ -2528,7 +2524,7 @@ export default function App() {
         </main>
       )}
 
-      {}
+      {/* Cart Slider */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-end">
           <div className="bg-white w-full max-w-md h-full shadow-2xl p-6 flex flex-col justify-between overflow-y-auto animate-slideIn">
@@ -2550,7 +2546,7 @@ export default function App() {
               ) : (
                 <div className="space-y-4">
                   {cart.map(item => (
-                    <div key={item.id} className="flex gap-3 items-center border-b pb-3 border-slate-100 text-left">
+                    <div key={item.id} className="flex gap-3 items-center border-b pb-3 border-slate-100 text-left animate-fadeIn">
                       <img src={item.image} alt="" className="w-12 h-12 rounded-xl object-cover border" />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-slate-800 truncate leading-snug">{item.name}</p>
@@ -2576,7 +2572,6 @@ export default function App() {
               )}
             </div>
 
-            {}
             {cart.length > 0 && (
               <form onSubmit={handleCheckout} className="border-t pt-4 mt-6 space-y-3 text-left">
                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Checkout Specifications</span>
@@ -2620,7 +2615,7 @@ export default function App() {
                 <div className="space-y-1.5 font-semibold text-slate-600">
                   <label className="text-[10px] uppercase font-bold text-slate-505 block">Payment Option</label>
                   <div className="grid grid-cols-3 gap-2">
-                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50">
+                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50 transition-colors">
                       <input 
                         type="radio" 
                         name="payment" 
@@ -2631,7 +2626,7 @@ export default function App() {
                       />
                       COD
                     </label>
-                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50">
+                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50 transition-colors">
                       <input 
                         type="radio" 
                         name="payment" 
@@ -2642,7 +2637,7 @@ export default function App() {
                       />
                       Points
                     </label>
-                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50">
+                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50 transition-colors">
                       <input 
                         type="radio" 
                         name="payment" 
@@ -2670,6 +2665,7 @@ export default function App() {
       )}
 
       {}
+      {/* Product Detail Modal */}
       {activeProduct && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-100 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative animate-fadeIn max-h-[90vh] overflow-y-auto">
@@ -2686,14 +2682,14 @@ export default function App() {
                     <img src={brands.find(b => b.id === activeProduct.brandId).logoUrl} alt="" className="w-8 h-8 rounded-full object-cover border" />
                   </div>
                 )}
-                <button onClick={() => setActiveProduct(null)} className="p-1 bg-white hover:bg-slate-100 border rounded-full text-slate-400">
+                <button onClick={() => setActiveProduct(null)} className="p-1 bg-white hover:bg-slate-100 border rounded-full text-slate-400 transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
             <div className="p-6 space-y-6 text-left">
-              <div className="flex flex-col sm:flex-row gap-4 bg-rose-50/30 p-4 rounded-2xl border border-rose-100">
+              <div className="flex flex-col sm:flex-row gap-4 bg-rose-50/30 p-4 rounded-2xl border border-rose-100 animate-fadeIn">
                 <div className="bg-white p-3 rounded-xl text-center border shadow-sm shrink-0 w-full sm:w-auto">
                   <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block">FAULT SCALE</span>
                   <span className="text-2xl font-black text-[#F41B5E]">-{activeProduct.faultScore}%</span>
@@ -2701,22 +2697,56 @@ export default function App() {
                 <p className="text-xs text-slate-600 italic leading-relaxed font-semibold">"{activeProduct.description}"</p>
               </div>
 
-              <div className="space-y-2 text-left">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Fault Index Progression Line Curve</span>
-                <div className="bg-[#FAF9FC] border p-4 rounded-3xl h-44 relative flex items-end">
-                  <svg className="absolute inset-0 h-full w-full p-4" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {/* Dynamic SVGs Degradation timeline */}
+              <div className="space-y-3 text-left">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Fault Index Progression Line Curve</span>
+                  <span className="text-[9px] text-rose-500 font-bold bg-rose-50 px-2 py-0.5 rounded-md flex items-center gap-1">
+                    <Info className="w-3 h-3" /> Click on points to inspect
+                  </span>
+                </div>
+                <div className="bg-[#FAF9FC] border border-slate-200/60 p-6 rounded-3xl relative h-48 flex items-end">
+                  <svg className="absolute inset-0 h-full w-full p-6 overflow-visible" viewBox="0 0 400 100" preserveAspectRatio="none">
+                    {/* Defending grid lines */}
+                    <line x1="0" y1="100" x2="400" y2="100" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3,3" />
+                    <line x1="0" y1="50" x2="400" y2="50" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3,3" />
+                    <line x1="0" y1="0" x2="400" y2="0" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3,3" />
+                    
+                    {/* Curve path */}
                     <path
-                      d={`M 0,${100 - activeProduct.timeline[0]} L 25,${100 - activeProduct.timeline[1]} L 50,${100 - activeProduct.timeline[2]} L 75,${100 - activeProduct.timeline[3]} L 100,${100 - activeProduct.timeline[4]}`}
+                      d={`M 0,${100 - activeProduct.timeline[0]} C 100,${100 - activeProduct.timeline[1]} 200,${100 - activeProduct.timeline[2]} 300,${100 - activeProduct.timeline[3]} 400,${100 - activeProduct.timeline[4]}`}
                       fill="none"
                       stroke="#F41B5E"
                       strokeWidth="3.5"
+                      className="animate-drawCurve"
                     />
+                    
+                    {/* Data Points */}
+                    {activeProduct.timeline.map((val, idx) => {
+                      const cx = idx * 100;
+                      const cy = 100 - val;
+                      return (
+                        <g key={idx} className="cursor-pointer" onMouseEnter={() => setHoverTimelineIndex(idx)} onMouseLeave={() => setHoverTimelineIndex(null)}>
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={hoverTimelineIndex === idx ? "8" : "6"}
+                            fill="#F41B5E"
+                            stroke="#FFFFFF"
+                            strokeWidth="2.5"
+                            className="transition-all duration-200 hover:scale-125"
+                          />
+                        </g>
+                      );
+                    })}
                   </svg>
-                  <div className="relative z-10 w-full flex justify-between">
+                  
+                  {/* Legend underneath */}
+                  <div className="relative z-10 w-full flex justify-between px-2">
                     {activeProduct.timeline.map((val, idx) => (
-                      <div key={idx} className="text-center">
+                      <div key={idx} className={`text-center p-1 rounded-xl transition-all ${hoverTimelineIndex === idx ? 'bg-rose-50 scale-105' : ''}`}>
                         <span className="text-xs font-black text-[#F41B5E] block">{val}%</span>
-                        <span className="text-[9px] text-slate-400 font-bold block">{['Init', '3m', '6m', '12m', '24m'][idx]}</span>
+                        <span className="text-[9px] text-slate-400 font-bold block">{['Init', '3 Months', '6 Months', '1 Year', '2 Years'][idx]}</span>
                       </div>
                     ))}
                   </div>
@@ -2734,7 +2764,7 @@ export default function App() {
                       </div>
                       <button
                         onClick={() => upvoteFault(activeProduct.id, f.id)}
-                        className="bg-[#F41B5E] text-white px-3 py-1.5 rounded-xl font-bold text-xs"
+                        className="bg-[#F41B5E] text-white px-3.5 py-1.5 rounded-xl font-bold text-xs hover:bg-rose-600 transition-colors"
                       >
                         I Face This Too
                       </button>
@@ -2746,7 +2776,7 @@ export default function App() {
               {suggestedAlternative ? (
                 <div className="bg-emerald-50/60 border border-emerald-100 p-4 rounded-2xl space-y-3">
                   <div className="flex items-center gap-2 text-emerald-800">
-                    <Sparkles className="w-5 h-5 text-emerald-600 animate-spin" />
+                    <Sparkles className="w-5 h-5 text-emerald-600 animate-pulse" />
                     <span className="text-xs font-black uppercase tracking-wider">Recommended Better Alternative</span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-3 rounded-xl border shadow-sm">
@@ -2759,9 +2789,9 @@ export default function App() {
                       href={suggestedAlternative.affiliateLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs px-3 py-2 rounded-xl transition-colors inline-flex items-center gap-1.5"
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-sm"
                     >
-                      Buy Alternative <ArrowRight className="w-3.5 h-3.5" />
+                      Buy Alternative <ChevronRight className="w-3.5 h-3.5" />
                     </a>
                   </div>
                 </div>
@@ -2774,7 +2804,7 @@ export default function App() {
             </div>
 
             <div className="p-4 bg-slate-50 border-t flex justify-end">
-              <button onClick={() => setActiveProduct(null)} className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-xs px-5 py-2 rounded-xl transition-all">
+              <button onClick={() => setActiveProduct(null)} className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-xs px-5 py-2.5 rounded-xl transition-all">
                 Close Insights
               </button>
             </div>
@@ -2783,7 +2813,6 @@ export default function App() {
         </div>
       )}
 
-      {}
       {/* Category Creation Form */}
       {showCategoryForm && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -2798,7 +2827,7 @@ export default function App() {
                 value={newCatName} 
                 onChange={(e) => setNewCatName(e.target.value)} 
                 placeholder="e.g. Smart Watches, Graphics Cards" 
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none focus:border-[#F41B5E]" 
                 required 
               />
             </div>
@@ -2822,7 +2851,7 @@ export default function App() {
                 type="text" 
                 value={editingCategory.name} 
                 onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })} 
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" 
                 required 
               />
             </div>
@@ -2845,7 +2874,7 @@ export default function App() {
               <select 
                 value={brandTargetCat} 
                 onChange={(e) => setBrandTargetCat(e.target.value)} 
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" 
                 required
               >
                 <option value="">Select Category Parent</option>
@@ -2860,7 +2889,7 @@ export default function App() {
                 value={brandName}
                 onChange={(e) => setBrandName(e.target.value)}
                 placeholder="Nokia, Apple, Cat VPN etc"
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none focus:border-[#F41B5E]"
                 required
               />
             </div>
@@ -2874,7 +2903,7 @@ export default function App() {
               </div>
               
               <div className="flex items-center gap-3 mt-2">
-                <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-4 rounded-xl cursor-pointer flex flex-col items-center justify-center">
+                <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-4 rounded-xl cursor-pointer flex flex-col items-center justify-center transition-all">
                   <Upload className="w-5 h-5 text-slate-400 mb-1" />
                   <span className="text-[10px] font-bold text-slate-505">Select Local File</span>
                   <input 
@@ -2905,54 +2934,6 @@ export default function App() {
         </div>
       )}
 
-      {}
-      {editingBrand && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={saveBrandEdit} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left animate-fadeIn">
-            <h3 className="text-lg font-black text-slate-900">Edit Brand Metadata</h3>
-            
-            <div className="space-y-1 font-semibold text-slate-600">
-              <label className="text-xs text-slate-400 font-bold uppercase block">Category Parent</label>
-              <select 
-                value={editingBrand.categoryId} 
-                onChange={(e) => setEditingBrand({ ...editingBrand, categoryId: e.target.value })} 
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
-                required
-              >
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-
-            <div className="space-y-1 font-semibold text-slate-600">
-              <label className="text-xs text-slate-400 uppercase font-black block">Brand Name</label>
-              <input
-                type="text"
-                value={editingBrand.name}
-                onChange={(e) => setEditingBrand({ ...editingBrand, name: e.target.value })}
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
-                required
-              />
-            </div>
-
-            <div className="space-y-1 font-semibold text-slate-600">
-              <label className="text-xs text-slate-400 uppercase font-black block">Logo URL</label>
-              <input
-                type="text"
-                value={editingBrand.logoUrl}
-                onChange={(e) => setEditingBrand({ ...editingBrand, logoUrl: e.target.value })}
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
-                required
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 text-xs">
-              <button type="button" onClick={() => setEditingBrand(null)} className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl font-bold">Cancel</button>
-              <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold">Save adjustments</button>
-            </div>
-          </form>
-        </div>
-      )}
-
       {/* Model Index form */}
       {showProductForm && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -2968,7 +2949,7 @@ export default function App() {
                 <select 
                   value={prodCatId} 
                   onChange={(e) => setProdCatId(e.target.value)} 
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" 
                   required
                 >
                   <option value="">Select Category</option>
@@ -2981,7 +2962,7 @@ export default function App() {
                 <select 
                   value={prodBrandId} 
                   onChange={(e) => setProdBrandId(e.target.value)} 
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" 
                   required
                 >
                   <option value="">Select Brand</option>
@@ -2997,7 +2978,7 @@ export default function App() {
                 value={prodName}
                 onChange={(e) => setProdName(e.target.value)}
                 placeholder="e.g. Galaxy Fold 5"
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none focus:border-[#F41B5E]"
                 required
               />
             </div>
@@ -3008,7 +2989,7 @@ export default function App() {
                 value={prodDesc}
                 onChange={(e) => setProdDesc(e.target.value)}
                 placeholder="Briefly state the primary real-life defect found on this model."
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none focus:border-[#F41B5E]"
                 rows="2"
               />
             </div>
@@ -3022,7 +3003,7 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-3 mt-1">
-                <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-3 rounded-xl cursor-pointer flex flex-col items-center justify-center">
+                <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-3 rounded-xl cursor-pointer flex flex-col items-center justify-center transition-all">
                   <Upload className="w-4 h-4 text-slate-400 mb-1" />
                   <span className="text-[9px] font-bold text-slate-505">Pick Photo</span>
                   <input 
@@ -3064,7 +3045,7 @@ export default function App() {
                 <select 
                   value={editingProduct.categoryId} 
                   onChange={(e) => setEditingProduct({ ...editingProduct, categoryId: e.target.value })} 
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" 
                 >
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
@@ -3075,7 +3056,7 @@ export default function App() {
                 <select 
                   value={editingProduct.brandId} 
                   onChange={(e) => setEditingProduct({ ...editingProduct, brandId: e.target.value })} 
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" 
                 >
                   {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
@@ -3088,7 +3069,7 @@ export default function App() {
                 type="text"
                 value={editingProduct.modelName}
                 onChange={(e) => setEditingProduct({ ...editingProduct, modelName: e.target.value })}
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
                 required
               />
             </div>
@@ -3099,7 +3080,7 @@ export default function App() {
                 type="number"
                 value={editingProduct.faultScore}
                 onChange={(e) => setEditingProduct({ ...editingProduct, faultScore: parseInt(e.target.value) || 0 })}
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs font-mono"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs font-mono focus:outline-none"
                 required
               />
             </div>
@@ -3110,7 +3091,7 @@ export default function App() {
                 type="text"
                 value={editingProduct.imageUrl}
                 onChange={(e) => setEditingProduct({ ...editingProduct, imageUrl: e.target.value })}
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
               />
             </div>
 
@@ -3119,7 +3100,7 @@ export default function App() {
               <textarea
                 value={editingProduct.description}
                 onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs animate-fadeIn"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
                 rows="2"
               />
             </div>
@@ -3144,7 +3125,7 @@ export default function App() {
                 type="text"
                 value={editingStoreProduct.name}
                 onChange={(e) => setEditingStoreProduct({ ...editingStoreProduct, name: e.target.value })}
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
                 required
               />
             </div>
@@ -3156,7 +3137,7 @@ export default function App() {
                   type="number"
                   value={editingStoreProduct.price}
                   onChange={(e) => setEditingStoreProduct({ ...editingStoreProduct, price: parseInt(e.target.value) || 0 })}
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs font-mono"
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs font-mono focus:outline-none"
                   required
                 />
               </div>
@@ -3167,7 +3148,7 @@ export default function App() {
                   type="number"
                   value={editingStoreProduct.pointsCost}
                   onChange={(e) => setEditingStoreProduct({ ...editingStoreProduct, pointsCost: parseInt(e.target.value) || 0 })}
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs font-mono"
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs font-mono focus:outline-none"
                   required
                 />
               </div>
@@ -3179,7 +3160,7 @@ export default function App() {
                 type="text"
                 value={editingStoreProduct.image}
                 onChange={(e) => setEditingStoreProduct({ ...editingStoreProduct, image: e.target.value })}
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
                 required
               />
             </div>
@@ -3200,7 +3181,7 @@ export default function App() {
             
             <div className="space-y-1 font-semibold text-slate-600">
               <label className="text-xs text-slate-400 uppercase font-black block">Choose Product Model</label>
-              <select value={probProduct} onChange={(e) => setProbProduct(e.target.value)} className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" required>
+              <select value={probProduct} onChange={(e) => setProbProduct(e.target.value)} className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" required>
                 <option value="">Choose Model</option>
                 {activeProducts.map(p => <option key={p.id} value={p.id}>{p.modelName}</option>)}
               </select>
@@ -3208,7 +3189,7 @@ export default function App() {
 
             <div className="space-y-1 font-semibold text-slate-600">
               <label className="text-xs text-slate-400 uppercase font-black block">Observed Bug / Issue</label>
-              <select value={probText} onChange={(e) => setProbText(e.target.value)} className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" required>
+              <select value={probText} onChange={(e) => setProbText(e.target.value)} className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" required>
                 <option value="Battery Degradation & Fast Draining">Battery Degradation & Fast Draining</option>
                 <option value="UI Slowdown / Stutter Lags">UI Slowdown / Stutter Lags</option>
                 <option value="Overheating Under Moderate Load">Overheating Under Moderate Load</option>
@@ -3225,7 +3206,7 @@ export default function App() {
                   value={customProbText}
                   onChange={(e) => setCustomProbText(e.target.value)}
                   placeholder="e.g. Loose charging port connector"
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none focus:border-[#F41B5E]"
                   required
                 />
               </div>
@@ -3239,7 +3220,6 @@ export default function App() {
         </div>
       )}
 
-      {}
       {/* Authentication Popup */}
       {showAuthModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -3259,7 +3239,7 @@ export default function App() {
                         placeholder="e.g. name@gmail.com"
                         value={checkoutForm.name}
                         onChange={(e) => setCheckoutForm({ ...checkoutForm, name: e.target.value })}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
                         required
                       />
                     </div>
@@ -3270,7 +3250,7 @@ export default function App() {
                         placeholder="••••••••"
                         value={authPassword}
                         onChange={(e) => setAuthPassword(e.target.value)}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
                         required
                       />
                     </div>
@@ -3284,7 +3264,7 @@ export default function App() {
                         placeholder="John Doe"
                         value={regFullName}
                         onChange={(e) => setRegFullName(e.target.value)}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
                         required
                       />
                     </div>
@@ -3295,7 +3275,7 @@ export default function App() {
                         placeholder="yourname@gmail.com"
                         value={regEmail}
                         onChange={(e) => setRegEmail(e.target.value)}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
                         required
                       />
                     </div>
@@ -3306,7 +3286,7 @@ export default function App() {
                         placeholder="e.g. Bangladesh"
                         value={regCountry}
                         onChange={(e) => setRegCountry(e.target.value)}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
                         required
                       />
                     </div>
@@ -3317,7 +3297,7 @@ export default function App() {
                         placeholder="••••••••"
                         value={authPassword}
                         onChange={(e) => setAuthPassword(e.target.value)}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
                         required
                       />
                     </div>
@@ -3352,7 +3332,7 @@ export default function App() {
           </div>
 
           <div className="space-y-3">
-            <h3 className="text-xs uppercase tracking-widest text-white font-black">Top Products</h3>
+            <h3 className="text-xs uppercase tracking-widest text-white font-black">Top Categories</h3>
             <ul className="space-y-2 text-xs font-bold">
               <li><button onClick={() => { setSelectedCategory('cat-1'); setCurrentView('index'); }} className="hover:text-white transition-colors">Smartphones</button></li>
               <li><button onClick={() => { setSelectedCategory('cat-2'); setCurrentView('index'); }} className="hover:text-white transition-colors">Software & VPN Lag</button></li>
