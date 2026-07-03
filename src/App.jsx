@@ -540,115 +540,85 @@ export default function App() {
   };
 
   const handleAuthSubmit = async (e) => {
-    e.preventDefault();
-    const emailInput = checkoutForm.email.toLowerCase().trim();
+  e.preventDefault();
+  
+  if (authTab === 'login') {
+    const emailOrUser = checkoutForm.name;
+    try {
+      triggerAlert('Verifying credentials with cloud...', 'info');
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: emailOrUser,
+        password: authPassword,
+      });
 
-    if (authTab === 'login') {
-      let existingUser = users.find(u => u.email.toLowerCase() === emailInput);
-      
-      if (dbStatus === 'connected') {
-        try {
-          const { data } = await supabase.from('profiles').select('*').eq('email', emailInput).maybeSingle();
-          if (data) {
-            existingUser = mapUserFromDB(data);
-          }
-        } catch (err) {
-          console.warn('Live profile check bypassed. Fallback online: ', err);
-        }
-      }
-
-      if (emailInput.includes('admin') || (existingUser && existingUser.role === 'admin')) {
-        setUserRole('admin');
-        const adminName = existingUser ? existingUser.name : 'Root Administrator';
-        const adminId = existingUser ? existingUser.id : 'u-admin';
-        setUsername(adminName);
-        setCurrentUserId(adminId);
-        setIsLoggedIn(true);
-        triggerAlert('Logged in securely as Administrator.');
-      } else if (existingUser) {
-        setUserRole('user');
-        setUsername(existingUser.name);
-        setCurrentUserId(existingUser.id);
-        setUserPoints(existingUser.points);
-        setIsLoggedIn(true);
-        triggerAlert(`Welcome back, ${existingUser.name}!`);
-      } else {
-        const tempName = toTitleCase(emailInput.split('@')[0]) || 'Guest User';
-        const newUserId = `u-${Date.now()}`;
-        const newU = {
-          id: newUserId,
-          name: tempName,
-          phone: '01700000000',
-          email: emailInput || 'guest@checkminus1.com',
-          role: 'user',
-          points: 100,
-          joinedAt: new Date().toISOString().split('T')[0],
-          activity: { reportsSubmitted: 0, brandsCreated: 0, modelsIndexed: 0, votesCast: 0, details: [] }
-        };
-        
-        setUsers([...users, newU]);
-        setUserRole('user');
-        setUsername(tempName);
-        setCurrentUserId(newUserId);
-        setUserPoints(100);
-        setIsLoggedIn(true);
-        
-        if (dbStatus === 'connected') {
-          try {
-            await supabase.from('profiles').insert([mapUserToDB(newU)]);
-          } catch (err) {
-            console.error('Supabase write error: ', err);
-          }
-        }
-        triggerAlert('Account initialized automatically! +100 Points Welcome Bonus.');
-      }
-    } else {
-      if (!checkoutForm.name.trim() || !checkoutForm.email.trim() || !checkoutForm.phone.trim()) {
-        triggerAlert('Please fulfill all credentials fields.', 'error');
-        return;
-      }
-      const phoneRegex = /^01[3-9]\d{8}$/;
-      if (!phoneRegex.test(checkoutForm.phone)) {
-        triggerAlert('Invalid Bangladeshi phone. Please use valid 11 digits.', 'error');
+      if (authError) {
+        triggerAlert(`Login Failed: ${authError.message}`, 'error');
         return;
       }
 
-      const duplicateEmail = users.some(u => u.email.toLowerCase() === checkoutForm.email.toLowerCase().trim());
-      if (duplicateEmail) {
-        triggerAlert('Email already registered. Please login.', 'error');
-        return;
-      }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, full_name')
+        .eq('id', authData.user.id)
+        .single();
 
-      const newUserId = `u-${Date.now()}`;
-      const newU = {
-        id: newUserId,
-        name: toTitleCase(checkoutForm.name),
-        phone: checkoutForm.phone,
-        email: checkoutForm.email.toLowerCase().trim(),
-        role: 'user',
-        points: 150, 
-        joinedAt: new Date().toISOString().split('T')[0],
-        activity: { reportsSubmitted: 0, brandsCreated: 0, modelsIndexed: 0, votesCast: 0, details: [] }
-      };
-
-      setUsers([...users, newU]);
-      setUserRole('user');
-      setUsername(newU.name);
-      setCurrentUserId(newUserId);
-      setUserPoints(150);
       setIsLoggedIn(true);
+      setUserRole(profile?.role || 'user');
+      setUsername(profile?.full_name || emailOrUser);
+      
+      if (profile?.role === 'admin') {
+        triggerAlert('Welcome Back, Admin! Portal Unlocked.');
+      } else {
+        triggerAlert('Logged in successfully.');
+      }
+      setShowAuthModal(false);
+      setAuthPassword('');
+    } catch (err) {
+      triggerAlert('Connection error occurred.', 'error');
+    }
+  } else {
+    // ---- REAL CLOUD REGISTRATION FLOW ----
+    try {
+      triggerAlert('Creating secure cloud account...', 'info');
+      
+      // ১. সুপাবেস অথেনটিকেশনে ইউজার তৈরি করা
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: regEmail,
+        password: authPassword,
+      });
 
-      if (dbStatus === 'connected') {
-        try {
-          await supabase.from('profiles').insert([mapUserToDB(newU)]);
-        } catch (err) {
-          console.error('Supabase user creation failed: ', err);
+      if (authError) {
+        triggerAlert(`Registration Failed: ${authError.message}`, 'error');
+        return;
+      }
+
+      if (authData?.user) {
+        // ২. সফলভাবে অ্যাকাউন্ট তৈরি হলে 'profiles' টেবিলে তার প্রোফাইল ডেটা পুশ করা
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: authData.user.id,
+              username: regEmail.split('@')[0],
+              full_name: regFullName,
+              website: regCountry,
+              role: 'user' // নতুন ইউজার ডিফল্টভাবে 'user' হবে
+            }
+          ]);
+
+        if (profileError) {
+          triggerAlert(`Profile DB Error: ${profileError.message}`, 'error');
+        } else {
+          triggerAlert('Account created successfully! Switching to login.', 'success');
+          setAuthTab('login');
+          setCheckoutForm({ ...checkoutForm, name: regEmail });
         }
       }
-      triggerAlert('Registration successful! +150 Points awarded.');
+    } catch (err) {
+      triggerAlert('Registration error occurred.', 'error');
     }
-    setShowAuthModal(false);
-  };
+  }
+};
 
   const handleLogout = () => {
     setIsLoggedIn(false);
@@ -876,6 +846,10 @@ export default function App() {
       triggerAlert('Please complete Brand, Category, and Model Name fields.', 'error');
       return;
     }
+
+    const [regEmail, setRegEmail] = useState('');
+    const [regFullName, setRegFullName] = useState('');
+    const [regCountry, setRegCountry] = useState('');
 
     const formattedModel = toTitleCase(prodName);
     const newProductId = `prod-${Date.now()}`;
@@ -3248,82 +3222,86 @@ export default function App() {
               <button onClick={() => setAuthTab('register')} className={`flex-1 py-4 text-center text-xs font-black uppercase tracking-wider ${authTab === 'register' ? 'border-b-2 border-[#F41B5E] text-[#F41B5E]' : 'text-slate-400'}`}>Register</button>
             </div>
 
-            <form onSubmit={handleAuthSubmit} className="p-6 space-y-4 font-semibold text-slate-600">
-              {authTab === 'login' ? (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-400 font-bold uppercase">Email Address / Username</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. rashedul@gmail.com"
-                      value={checkoutForm.email}
-                      onChange={(e) => setCheckoutForm({ ...checkoutForm, email: e.target.value })}
-                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-400 font-bold uppercase">Password</label>
-                    <input
-                      type="password"
-                      placeholder="••••••••"
-                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
-                      required
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-400 font-bold uppercase">Full Name</label>
-                    <input
-                      type="text"
-                      placeholder="Tanzim Rahman"
-                      value={checkoutForm.name}
-                      onChange={(e) => setCheckoutForm({ ...checkoutForm, name: e.target.value })}
-                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-400 font-bold uppercase">Email Address</label>
-                    <input
-                      type="email"
-                      placeholder="tanzim@hotmail.com"
-                      value={checkoutForm.email}
-                      onChange={(e) => setCheckoutForm({ ...checkoutForm, email: e.target.value })}
-                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-400 font-bold uppercase">Bangladeshi Phone Number</label>
-                    <input
-                      type="text"
-                      placeholder="01XXXXXXXXX"
-                      value={checkoutForm.phone}
-                      onChange={(e) => setCheckoutForm({ ...checkoutForm, phone: e.target.value })}
-                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs font-mono"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-400 font-bold uppercase">Password</label>
-                    <input
-                      type="password"
-                      placeholder="••••••••"
-                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
-                      required
-                    />
-                  </div>
-                </>
-              )}
+            <form onSubmit={handleAuthSubmit} className="p-6 space-y-4">
+                {authTab === 'login' ? (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-400 font-bold uppercase">Email Address</label>
+                      <input
+                        type="email"
+                        placeholder="e.g. name@gmail.com"
+                        value={checkoutForm.name}
+                        onChange={(e) => setCheckoutForm({ ...checkoutForm, name: e.target.value })}
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-400 font-bold uppercase">Password</label>
+                      <input
+                        type="password"
+                        placeholder="••••••••"
+                        value={authPassword}
+                        onChange={(e) => setAuthPassword(e.target.value)}
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                        required
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-400 font-bold uppercase">Full Name</label>
+                      <input
+                        type="text"
+                        placeholder="John Doe"
+                        value={regFullName}
+                        onChange={(e) => setRegFullName(e.target.value)}
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-400 font-bold uppercase">Email Address</label>
+                      <input
+                        type="email"
+                        placeholder="yourname@gmail.com"
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-400 font-bold uppercase">Home Country</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Bangladesh"
+                        value={regCountry}
+                        onChange={(e) => setRegCountry(e.target.value)}
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-400 font-bold uppercase">Set Password</label>
+                      <input
+                        type="password"
+                        placeholder="••••••••"
+                        value={authPassword}
+                        onChange={(e) => setAuthPassword(e.target.value)}
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
 
-              <div className="flex gap-2 pt-2 text-xs">
-                <button type="button" onClick={() => setShowAuthModal(false)} className="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold text-center">Cancel</button>
-                <button type="submit" className="flex-1 bg-[#F41B5E] text-white py-2.5 rounded-xl font-bold text-center shadow-md shadow-rose-200">{authTab === 'login' ? 'Sign In' : 'Register'}</button>
-              </div>
-            </form>
+                <div className="flex gap-2 pt-2">
+                  <button type="button" onClick={() => setShowAuthModal(false)} className="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-xl text-xs font-bold text-center">Cancel</button>
+                  <button type="submit" className="flex-1 bg-[#F41B5E] text-white py-2.5 rounded-xl text-xs font-bold text-center shadow-md shadow-rose-200">{authTab === 'login' ? 'Sign In' : 'Register'}</button>
+                </div>
+              </form>
           </div>
         </div>
       )}
