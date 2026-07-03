@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { supabase } from './supabaseClient';
 import { 
   ShieldCheck, 
   Plus, 
@@ -33,10 +34,10 @@ import {
   ShieldAlert,
   FileSpreadsheet,
   CheckSquare,
-  Square
+  Square,
+  Database
 } from 'lucide-react';
 
-/* Helper: Title Case converter */
 const toTitleCase = (str) => {
   if (!str) return '';
   return str
@@ -47,7 +48,7 @@ const toTitleCase = (str) => {
     .join(' ');
 };
 
-/* Auto-Image Resizer using Canvas */
+/* Auto-Image Resizer using Canvas to optimize base64 payloads */
 const resizeImage = (file, maxWidth, maxHeight, cropToSquare = false) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -101,7 +102,6 @@ const resizeImage = (file, maxWidth, maxHeight, cropToSquare = false) => {
   });
 };
 
-/* Bootstrapping Datasets */
 const initialCategories = [
   { id: 'cat-1', name: 'Smartphones', active: true },
   { id: 'cat-2', name: 'Software & VPN', active: true },
@@ -170,7 +170,6 @@ const initialStoreProducts = [
   { id: 'sp-3', name: 'Anti-Glare Matte Screen Protector', price: 450, pointsCost: 50, image: 'https://images.unsplash.com/photo-1581090700227-13617d58f35f?w=300&auto=format&fit=crop&q=80', active: true },
 ];
 
-/* Initial mock users base to monitor activity logs */
 const initialUsers = [
   {
     id: 'u-1',
@@ -189,24 +188,6 @@ const initialUsers = [
         { type: 'Report', target: 'Galaxy S24 Ultra', desc: 'Display Gradient Flickering', date: '2026-06-15' },
         { type: 'Index', target: 'Cat VPN Pro', desc: 'Auto Disconnection bug', date: '2026-06-20' },
         { type: 'Vote', target: 'MacBook Air M3', desc: 'Midnight Color Chipping Off Easily', date: '2026-06-28' }
-      ]
-    }
-  },
-  {
-    id: 'u-2',
-    name: 'Tanzim Rahman',
-    phone: '01899228833',
-    email: 'tanzim@hotmail.com',
-    role: 'user',
-    points: 120,
-    joinedAt: '2026-04-18',
-    activity: {
-      reportsSubmitted: 1,
-      brandsCreated: 0,
-      modelsIndexed: 1,
-      votesCast: 2,
-      details: [
-        { type: 'Index', target: 'MacBook Air M3', desc: 'Premium chassis checks', date: '2026-05-02' }
       ]
     }
   },
@@ -245,10 +226,112 @@ const analyticsData = {
   gender: { male: 74, female: 24, other: 2 }
 };
 
+const mapBrandFromDB = (b) => ({
+  id: b.id,
+  categoryId: b.category_id,
+  name: b.name,
+  logoUrl: b.logo_url,
+  approved: b.approved,
+  active: b.active
+});
+
+const mapBrandToDB = (b) => ({
+  id: b.id,
+  category_id: b.categoryId,
+  name: b.name,
+  logo_url: b.logoUrl,
+  approved: b.approved,
+  active: b.active
+});
+
+const mapProductFromDB = (p, faultsList) => ({
+  id: p.id,
+  brandId: p.brand_id,
+  categoryId: p.category_id,
+  modelName: p.model_name,
+  faultScore: p.fault_score,
+  timeline: p.timeline || [5, 10, 15, 20, 25],
+  description: p.description,
+  affiliateLink: p.affiliate_link,
+  imageUrl: p.image_url,
+  active: p.active,
+  faults: faultsList || []
+});
+
+const mapProductToDB = (p) => ({
+  id: p.id,
+  brand_id: p.brandId,
+  category_id: p.categoryId,
+  model_name: p.modelName,
+  fault_score: p.faultScore,
+  timeline: p.timeline,
+  description: p.description,
+  affiliate_link: p.affiliateLink,
+  image_url: p.imageUrl,
+  active: p.active
+});
+
+const mapFaultFromDB = (f) => ({
+  id: f.id,
+  productId: f.product_id,
+  text: f.text,
+  votes: f.votes,
+  approved: f.approved
+});
+
+const mapFaultToDB = (f, productId) => ({
+  id: f.id,
+  product_id: productId,
+  text: f.text,
+  votes: f.votes,
+  approved: f.approved
+});
+
+const mapStoreProductFromDB = (sp) => ({
+  id: sp.id,
+  name: sp.name,
+  price: sp.price,
+  pointsCost: sp.points_cost,
+  image: sp.image,
+  active: sp.active
+});
+
+const mapStoreProductToDB = (sp) => ({
+  id: sp.id,
+  name: sp.name,
+  price: sp.price,
+  points_cost: sp.pointsCost,
+  image: sp.image,
+  active: sp.active
+});
+
+const mapUserFromDB = (u) => ({
+  id: u.id,
+  name: u.name,
+  phone: u.phone,
+  email: u.email,
+  role: u.role,
+  points: u.points,
+  joinedAt: u.joined_at,
+  activity: u.activity || { reportsSubmitted: 0, brandsCreated: 0, modelsIndexed: 0, votesCast: 0, details: [] }
+});
+
+const mapUserToDB = (u) => ({
+  id: u.id,
+  name: u.name,
+  phone: u.phone,
+  email: u.email,
+  role: u.role,
+  points: u.points,
+  joined_at: u.joinedAt,
+  activity: u.activity
+});
+
 export default function App() {
   const [currentView, setCurrentView] = useState('index');
+  const [dbStatus, setDbStatus] = useState('connecting'); // 'connecting' | 'connected' | 'offline'
 
-  /* DB States initialized from local storage or defaults */
+  /* DB States initialized from local storage as offline cache fallback */
   const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('c1_categories')) || initialCategories);
   const [brands, setBrands] = useState(() => JSON.parse(localStorage.getItem('c1_brands')) || initialBrands);
   const [products, setProducts] = useState(() => JSON.parse(localStorage.getItem('c1_products')) || initialProducts);
@@ -269,23 +352,18 @@ export default function App() {
     { id: 2, text: 'Admin approved your Samsung model submission. +10 Points earned!', unread: false }
   ]);
 
-  /* Administrative Active Sub-Tab */
   const [adminTab, setAdminTab] = useState('client-db');
-
-  /* E-commerce Cart States */
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutForm, setCheckoutForm] = useState({ name: '', address: '', phone: '', email: '', password: '', paymentMethod: 'cod' });
   const [countdown, setCountdown] = useState(10);
   const [lastOrderDetails, setLastOrderDetails] = useState(null);
 
-  /* Search & Filter UI States */
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedBrand, setSelectedBrand] = useState('all');
   const [activeProduct, setActiveProduct] = useState(null);
   
-  /* Form Popups & Multi-level Overlays Control */
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [showBrandForm, setShowBrandForm] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
@@ -293,19 +371,16 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authTab, setAuthTab] = useState('login');
 
-  /* Editing Modal State Managers for Admin CRUD */
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingBrand, setEditingBrand] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingStoreProduct, setEditingStoreProduct] = useState(null);
 
-  /* Client Database Monitoring States */
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [isAnonymousExport, setIsAnonymousExport] = useState(false);
   const [expandedUserId, setExpandedUserId] = useState(null);
   const [userSearchQuery, setUserSearchQuery] = useState('');
 
-  /* Input states with Image resize badges */
   const [newCatName, setNewCatName] = useState('');
   const [brandName, setBrandName] = useState('');
   const [brandTargetCat, setBrandTargetCat] = useState('');
@@ -319,7 +394,6 @@ export default function App() {
   const [prodImagePreview, setProdImagePreview] = useState('');
   const [isProdImgOptimized, setProdImgOptimized] = useState(false);
 
-  /* Admin Store Product Creation States */
   const [storeNewName, setStoreNewName] = useState('');
   const [storeNewPrice, setStoreNewPrice] = useState('');
   const [storeNewPoints, setStoreNewPoints] = useState('');
@@ -334,27 +408,69 @@ export default function App() {
   const [alertBanner, setAlertBanner] = useState({ show: false, msg: '', type: 'success' });
 
   useEffect(() => {
-    const styleId = 'checkminus1-styles';
-    if (!document.getElementById(styleId)) {
-      const style = document.createElement('style');
-      style.id = styleId;
-      style.innerHTML = `
-        @keyframes fadeIn {
-          from { opacity: 0; transform: scale(0.97); }
-          to { opacity: 1; transform: scale(1); }
+    const fetchSupabaseData = async () => {
+      if (!supabase) {
+        setDbStatus('offline');
+        return;
+      }
+      try {
+        setDbStatus('connecting');
+
+        // Helper function to query safe DB states without breaking on single table fail
+        const fetchTable = async (tableName) => {
+          try {
+            const { data, error } = await supabase.from(tableName).select('*');
+            if (error) throw error;
+            return data;
+          } catch (e) {
+            console.warn(`Fallback fetch failed for table: ${tableName}`, e);
+            return null;
+          }
+        };
+
+        const dbCats = await fetchTable('categories');
+        const dbBrands = await fetchTable('brands');
+        const dbProducts = await fetchTable('products');
+        const dbFaults = await fetchTable('faults');
+        const dbStore = await fetchTable('store_products');
+        const dbProfiles = await fetchTable('profiles');
+
+        if (dbCats && dbCats.length > 0) setCategories(dbCats);
+        
+        if (dbBrands && dbBrands.length > 0) {
+          const mappedBrands = dbBrands.map(mapBrandFromDB);
+          setBrands(mappedBrands.filter(b => b.approved));
+          setPendingBrands(mappedBrands.filter(b => !b.approved));
         }
-        @keyframes slideIn {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
+
+        if (dbProducts && dbProducts.length > 0) {
+          const mappedProducts = dbProducts.map(p => {
+            const pFaults = dbFaults ? dbFaults.filter(f => f.product_id === p.id).map(mapFaultFromDB) : [];
+            return mapProductFromDB(p, pFaults);
+          });
+          setProducts(mappedProducts);
         }
-        .animate-fadeIn { animation: fadeIn 0.25s ease-out forwards; }
-        .animate-slideIn { animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-      `;
-      document.head.appendChild(style);
-    }
+
+        if (dbStore && dbStore.length > 0) {
+          setStoreProducts(dbStore.map(mapStoreProductFromDB));
+        }
+
+        if (dbProfiles && dbProfiles.length > 0) {
+          setUsers(dbProfiles.map(mapUserFromDB));
+        }
+
+        setDbStatus('connected');
+        triggerAlert('Connected to Real-Time Cloud Database!');
+      } catch (e) {
+        console.warn('Database offline fallback loaded: ', e);
+        setDbStatus('offline');
+      }
+    };
+    
+    fetchSupabaseData();
   }, []);
 
-  /* LocalStorage Sync Syncronizers */
+  /* Local Storage updates as offline cache backup */
   useEffect(() => {
     localStorage.setItem('c1_categories', JSON.stringify(categories));
     localStorage.setItem('c1_brands', JSON.stringify(brands));
@@ -385,34 +501,62 @@ export default function App() {
     setTimeout(() => setAlertBanner({ show: false, msg: '', type: 'success' }), 4000);
   };
 
-  /* Helper to record user action in client database logs */
-  const logUserActivity = (userId, type, target, desc) => {
+  const logUserActivity = async (userId, type, target, desc) => {
     const today = new Date().toISOString().split('T')[0];
     const newLog = { type, target, desc, date: today };
     
-    setUsers(prevUsers => prevUsers.map(u => {
+    let updatedUserObj = null;
+
+    const updatedUsers = users.map(u => {
       if (u.id === userId) {
         const updatedActivity = { ...u.activity };
         updatedActivity.details = [newLog, ...updatedActivity.details];
         
-        if (type === 'Report') updatedActivity.reportsSubmitted += 1;
-        if (type === 'Brand') updatedActivity.brandsCreated += 1;
-        if (type === 'Index') updatedActivity.modelsIndexed += 1;
-        if (type === 'Vote') updatedActivity.votesCast += 1;
+        if (type === 'Report') updatedActivity.reportsSubmitted = (updatedActivity.reportsSubmitted || 0) + 1;
+        if (type === 'Brand') updatedActivity.brandsCreated = (updatedActivity.brandsCreated || 0) + 1;
+        if (type === 'Index') updatedActivity.modelsIndexed = (updatedActivity.modelsIndexed || 0) + 1;
+        if (type === 'Vote') updatedActivity.votesCast = (updatedActivity.votesCast || 0) + 1;
 
-        return { ...u, activity: updatedActivity, points: u.points + (type === 'Index' ? 10 : type === 'Report' ? 5 : 0) };
+        const updatedPoints = u.points + (type === 'Index' ? 10 : type === 'Report' ? 5 : 0);
+        updatedUserObj = { ...u, activity: updatedActivity, points: updatedPoints };
+        return updatedUserObj;
       }
       return u;
-    }));
+    });
+
+    setUsers(updatedUsers);
+
+    if (userId === currentUserId && updatedUserObj) {
+      setUserPoints(updatedUserObj.points);
+    }
+
+    if (dbStatus === 'connected' && updatedUserObj) {
+      try {
+        await supabase.from('profiles').upsert([mapUserToDB(updatedUserObj)]);
+      } catch (e) {
+        console.error('Failed to update activity to Cloud DB: ', e);
+      }
+    }
   };
 
-  /* Authentication Handler (Login & Signup) */
-  const handleAuthSubmit = (e) => {
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
+    const emailInput = checkoutForm.email.toLowerCase().trim();
+
     if (authTab === 'login') {
-      const emailInput = checkoutForm.email.toLowerCase().trim();
-      const existingUser = users.find(u => u.email.toLowerCase() === emailInput);
+      let existingUser = users.find(u => u.email.toLowerCase() === emailInput);
       
+      if (dbStatus === 'connected') {
+        try {
+          const { data } = await supabase.from('profiles').select('*').eq('email', emailInput).maybeSingle();
+          if (data) {
+            existingUser = mapUserFromDB(data);
+          }
+        } catch (err) {
+          console.warn('Live profile check bypassed. Fallback online: ', err);
+        }
+      }
+
       if (emailInput.includes('admin') || (existingUser && existingUser.role === 'admin')) {
         setUserRole('admin');
         const adminName = existingUser ? existingUser.name : 'Root Administrator';
@@ -429,7 +573,6 @@ export default function App() {
         setIsLoggedIn(true);
         triggerAlert(`Welcome back, ${existingUser.name}!`);
       } else {
-        /* Fallback registration on fly if not found */
         const tempName = toTitleCase(emailInput.split('@')[0]) || 'Guest User';
         const newUserId = `u-${Date.now()}`;
         const newU = {
@@ -442,16 +585,24 @@ export default function App() {
           joinedAt: new Date().toISOString().split('T')[0],
           activity: { reportsSubmitted: 0, brandsCreated: 0, modelsIndexed: 0, votesCast: 0, details: [] }
         };
+        
         setUsers([...users, newU]);
         setUserRole('user');
         setUsername(tempName);
         setCurrentUserId(newUserId);
         setUserPoints(100);
         setIsLoggedIn(true);
+        
+        if (dbStatus === 'connected') {
+          try {
+            await supabase.from('profiles').insert([mapUserToDB(newU)]);
+          } catch (err) {
+            console.error('Supabase write error: ', err);
+          }
+        }
         triggerAlert('Account initialized automatically! +100 Points Welcome Bonus.');
       }
     } else {
-      /* Complete Sign-Up form submission */
       if (!checkoutForm.name.trim() || !checkoutForm.email.trim() || !checkoutForm.phone.trim()) {
         triggerAlert('Please fulfill all credentials fields.', 'error');
         return;
@@ -475,7 +626,7 @@ export default function App() {
         phone: checkoutForm.phone,
         email: checkoutForm.email.toLowerCase().trim(),
         role: 'user',
-        points: 150, // Higher welcome bonus for full signups
+        points: 150, 
         joinedAt: new Date().toISOString().split('T')[0],
         activity: { reportsSubmitted: 0, brandsCreated: 0, modelsIndexed: 0, votesCast: 0, details: [] }
       };
@@ -486,6 +637,14 @@ export default function App() {
       setCurrentUserId(newUserId);
       setUserPoints(150);
       setIsLoggedIn(true);
+
+      if (dbStatus === 'connected') {
+        try {
+          await supabase.from('profiles').insert([mapUserToDB(newU)]);
+        } catch (err) {
+          console.error('Supabase user creation failed: ', err);
+        }
+      }
       triggerAlert('Registration successful! +150 Points awarded.');
     }
     setShowAuthModal(false);
@@ -514,7 +673,7 @@ export default function App() {
     setCart(cart.filter(item => item.id !== id));
   };
 
-  const handleCheckout = (e) => {
+  const handleCheckout = async (e) => {
     e.preventDefault();
     const phoneRegex = /^01[3-9]\d{8}$/; 
 
@@ -537,8 +696,16 @@ export default function App() {
         return;
       }
       setUserPoints(prev => prev - pointsTotal);
-      if (isLoggedIn && currentUserId) {
-        setUsers(prev => prev.map(u => u.id === currentUserId ? { ...u, points: u.points - pointsTotal } : u));
+      const nextUsers = users.map(u => u.id === currentUserId ? { ...u, points: u.points - pointsTotal } : u);
+      setUsers(nextUsers);
+
+      const targetUser = nextUsers.find(u => u.id === currentUserId);
+      if (dbStatus === 'connected' && targetUser) {
+        try {
+          await supabase.from('profiles').upsert([mapUserToDB(targetUser)]);
+        } catch (err) {
+          console.error('Supabase points deduct failure: ', err);
+        }
       }
     }
 
@@ -557,7 +724,7 @@ export default function App() {
     triggerAlert('Order received successfully!');
   };
 
-  const upvoteFault = (prodId, faultId) => {
+  const upvoteFault = async (prodId, faultId) => {
     if (!isLoggedIn) {
       triggerAlert('Please sign in to vote! We protect indices from fake votes.', 'error');
       setAuthTab('login');
@@ -565,24 +732,32 @@ export default function App() {
       return;
     }
 
-    /* Track votes to prevent duplicate entries */
     const userVotedList = userVotes[currentUserId] || [];
     if (userVotedList.includes(faultId)) {
-      triggerAlert('You have already registered your vote for this defect! Fake votes are blocked.', 'error');
+      triggerAlert('You have already registered your vote for this defect!', 'error');
       return;
     }
 
-    /* Mark as voted in User Votes Map */
     const updatedVotes = {
       ...userVotes,
       [currentUserId]: [...userVotedList, faultId]
     };
     setUserVotes(updatedVotes);
 
+    let targetFaultObj = null;
+    let targetProdObj = null;
+
     const updated = products.map(p => {
       if (p.id === prodId) {
-        const updatedFaults = p.faults.map(f => f.id === faultId ? { ...f, votes: f.votes + 1 } : f);
-        return { ...p, faults: updatedFaults, faultScore: Math.min(100, p.faultScore + 1) };
+        const updatedFaults = p.faults.map(f => {
+          if (f.id === faultId) {
+            targetFaultObj = { ...f, votes: f.votes + 1 };
+            return targetFaultObj;
+          }
+          return f;
+        });
+        targetProdObj = { ...p, faults: updatedFaults, faultScore: Math.min(100, p.faultScore + 1) };
+        return targetProdObj;
       }
       return p;
     });
@@ -592,16 +767,23 @@ export default function App() {
       setActiveProduct(updated.find(p => p.id === prodId));
     }
 
-    /* Log inside users activity database and give small contribution points */
+    if (dbStatus === 'connected' && targetFaultObj && targetProdObj) {
+      try {
+        await supabase.from('faults').update({ votes: targetFaultObj.votes }).eq('id', faultId);
+        await supabase.from('products').update({ fault_score: targetProdObj.faultScore }).eq('id', prodId);
+      } catch (err) {
+        console.error('Supabase fault score save failed: ', err);
+      }
+    }
+
     const matchedProd = products.find(p => p.id === prodId);
     const matchedFault = matchedProd?.faults.find(f => f.id === faultId);
     logUserActivity(currentUserId, 'Vote', matchedProd?.modelName || 'Product', matchedFault?.text || 'Defect');
 
-    triggerAlert('I Face This Too (-1) vote registered successfully!');
+    triggerAlert('Defect verified successfully!');
   };
 
-  /* Category Add Guarded */
-  const handleCategoryUpload = (e) => {
+  const handleCategoryUpload = async (e) => {
     e.preventDefault();
     if (!isLoggedIn) {
       triggerAlert('Access Denied. Please login first.', 'error');
@@ -610,14 +792,22 @@ export default function App() {
     if (!newCatName.trim()) return;
     const formatted = toTitleCase(newCatName);
     const newCat = { id: `cat-${Date.now()}`, name: formatted, active: true };
+    
     setCategories([...categories, newCat]);
     setNewCatName('');
     setShowCategoryForm(false);
+
+    if (dbStatus === 'connected') {
+      try {
+        await supabase.from('categories').insert([newCat]);
+      } catch (err) {
+        console.error('Supabase write failure: ', err);
+      }
+    }
     triggerAlert('New Category successfully added!');
   };
 
-  /* Brand Add Guarded */
-  const handleBrandUpload = (e) => {
+  const handleBrandUpload = async (e) => {
     e.preventDefault();
     if (!isLoggedIn) {
       triggerAlert('Please login to propose or index brands.', 'error');
@@ -645,10 +835,24 @@ export default function App() {
 
     if (userRole === 'admin') {
       setBrands([...brands, newBrand]);
+      if (dbStatus === 'connected') {
+        try {
+          await supabase.from('brands').insert([mapBrandToDB(newBrand)]);
+        } catch (err) {
+          console.error('Supabase write failure: ', err);
+        }
+      }
       triggerAlert('Brand added and approved directly by Admin!');
     } else {
       setPendingBrands([...pendingBrands, newBrand]);
       logUserActivity(currentUserId, 'Brand', formattedName, 'Proposed new brand');
+      if (dbStatus === 'connected') {
+        try {
+          await supabase.from('brands').insert([mapBrandToDB(newBrand)]);
+        } catch (err) {
+          console.error('Supabase pending write failure: ', err);
+        }
+      }
       triggerAlert('Brand submitted for Administrator verification.');
     }
 
@@ -659,8 +863,7 @@ export default function App() {
     setShowBrandForm(false);
   };
 
-  /* Product Add Guarded */
-  const handleProductUpload = (e) => {
+  const handleProductUpload = async (e) => {
     e.preventDefault();
     if (!isLoggedIn) {
       triggerAlert('Login is required to index new product models.', 'error');
@@ -675,8 +878,11 @@ export default function App() {
     }
 
     const formattedModel = toTitleCase(prodName);
+    const newProductId = `prod-${Date.now()}`;
+    const initialFaultObj = { id: `f-${Date.now()}`, text: 'Initial Index Active', votes: 1, approved: true };
+
     const newProduct = {
-      id: `prod-${Date.now()}`,
+      id: newProductId,
       brandId: prodBrandId,
       categoryId: prodCatId, 
       modelName: formattedModel,
@@ -686,7 +892,7 @@ export default function App() {
       affiliateLink: 'https://amazon.com/s?k=' + encodeURIComponent(formattedModel),
       imageUrl: prodImagePreview || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300', 
       active: true,
-      faults: [{ id: `f-${Date.now()}`, text: 'Initial Index Active', votes: 1, approved: true }]
+      faults: [initialFaultObj]
     };
 
     setProducts([...products, newProduct]);
@@ -698,6 +904,15 @@ export default function App() {
       ...notifications
     ]);
 
+    if (dbStatus === 'connected') {
+      try {
+        await supabase.from('products').insert([mapProductToDB(newProduct)]);
+        await supabase.from('faults').insert([mapFaultToDB(initialFaultObj, newProductId)]);
+      } catch (err) {
+        console.error('Supabase product index failure: ', err);
+      }
+    }
+
     setProdName('');
     setProdBrandId('');
     setProdCatId('');
@@ -708,8 +923,7 @@ export default function App() {
     triggerAlert('Product indexed! +10 Points added to your contribution wallet.');
   };
 
-  /* Store Add */
-  const handleAdminStoreProductUpload = (e) => {
+  const handleAdminStoreProductUpload = async (e) => {
     e.preventDefault();
     if (!storeNewName.trim() || !storeNewPrice || !storeNewPoints) {
       triggerAlert('Please complete all Store Product fields.', 'error');
@@ -731,16 +945,30 @@ export default function App() {
     setStoreNewPoints('');
     setStoreNewImage('');
     setStoreImgOptimized(false);
+
+    if (dbStatus === 'connected') {
+      try {
+        await supabase.from('store_products').insert([mapStoreProductToDB(newStoreProduct)]);
+      } catch (err) {
+        console.error('Supabase write failure: ', err);
+      }
+    }
     triggerAlert('New Store reward product successfully added to live inventory!');
   };
 
-  const deleteStoreProduct = (id) => {
+  const deleteStoreProduct = async (id) => {
     setStoreProducts(storeProducts.filter(p => p.id !== id));
+    if (dbStatus === 'connected') {
+      try {
+        await supabase.from('store_products').delete().eq('id', id);
+      } catch (err) {
+        console.error('Supabase delete error: ', err);
+      }
+    }
     triggerAlert('Store product deleted from live database.');
   };
 
-  /* Problem Add Guarded */
-  const handleProblemSubmission = (e) => {
+  const handleProblemSubmission = async (e) => {
     e.preventDefault();
     if (!isLoggedIn) {
       triggerAlert('Authentication is required to report hardware bugs.', 'error');
@@ -754,17 +982,23 @@ export default function App() {
     const finalProblem = probText === 'Other' ? toTitleCase(customProbText) : probText;
     if (!finalProblem.trim()) return;
 
+    let targetFaultObj = null;
+    let isNewFault = false;
+
     const updatedProducts = products.map(p => {
       if (p.id === probProduct) {
-        const exists = p.faults.some(f => f.text.toLowerCase() === finalProblem.toLowerCase());
+        const exists = p.faults.find(f => f.text.toLowerCase() === finalProblem.toLowerCase());
         let updatedFaults;
 
         if (exists) {
+          targetFaultObj = { ...exists, votes: exists.votes + 1 };
           updatedFaults = p.faults.map(f => 
-            f.text.toLowerCase() === finalProblem.toLowerCase() ? { ...f, votes: f.votes + 1 } : f
+            f.text.toLowerCase() === finalProblem.toLowerCase() ? targetFaultObj : f
           );
         } else {
-          updatedFaults = [...p.faults, { id: `f-${Date.now()}`, text: finalProblem, votes: 2, approved: true }];
+          isNewFault = true;
+          targetFaultObj = { id: `f-${Date.now()}`, text: finalProblem, votes: 2, approved: true };
+          updatedFaults = [...p.faults, targetFaultObj];
         }
 
         return {
@@ -785,13 +1019,28 @@ export default function App() {
     setUserPoints(prev => prev + 5); 
     logUserActivity(currentUserId, 'Report', products.find(p => p.id === probProduct)?.modelName || 'Model', finalProblem);
 
-    triggerAlert('Fault submitted and automatically upvoted! +5 Points rewarded.');
+    if (dbStatus === 'connected' && targetFaultObj) {
+      try {
+        if (isNewFault) {
+          await supabase.from('faults').insert([mapFaultToDB(targetFaultObj, probProduct)]);
+        } else {
+          await supabase.from('faults').update({ votes: targetFaultObj.votes }).eq('id', targetFaultObj.id);
+        }
+        const currentProd = updatedProducts.find(p => p.id === probProduct);
+        if (currentProd) {
+          await supabase.from('products').update({ fault_score: currentProd.faultScore }).eq('id', probProduct);
+        }
+      } catch (err) {
+        console.error('Supabase write error: ', err);
+      }
+    }
+
+    triggerAlert('Fault submitted and automatically upvoted!');
     setShowProblemForm(false);
     setProbProduct('');
     setCustomProbText('');
   };
 
-  /* Image Upload Handlers */
   const handleUploadedImage = async (e, targetSetter, optimizedSetter, width, height, crop) => {
     const file = e.target.files[0];
     if (file) {
@@ -806,66 +1055,126 @@ export default function App() {
     }
   };
 
-  const approveBrand = (pendingItem, catId) => {
+  const approveBrand = async (pendingItem, catId) => {
     const approvedItem = { ...pendingItem, categoryId: catId, approved: true, active: true };
     setBrands([...brands, approvedItem]);
     setPendingBrands(pendingBrands.filter(b => b.id !== pendingItem.id));
+
+    if (dbStatus === 'connected') {
+      try {
+        await supabase.from('brands').update({ approved: true, category_id: catId, active: true }).eq('id', pendingItem.id);
+      } catch (err) {
+        console.error('Supabase workflow adjustment failed: ', err);
+      }
+    }
     triggerAlert('Brand approved and indexed successfully.');
   };
 
-  const rejectBrand = (id) => {
+  const rejectBrand = async (id) => {
     setPendingBrands(pendingBrands.filter(b => b.id !== id));
+    if (dbStatus === 'connected') {
+      try {
+        await supabase.from('brands').delete().eq('id', id);
+      } catch (err) {
+        console.error('Supabase deletion error: ', err);
+      }
+    }
     triggerAlert('Brand recommendation declined.', 'info');
   };
 
-  /* Categories Admin Operations */
-  const saveCategoryEdit = (e) => {
+  const saveCategoryEdit = async (e) => {
     e.preventDefault();
     setCategories(categories.map(c => c.id === editingCategory.id ? editingCategory : c));
+    
+    if (dbStatus === 'connected') {
+      try {
+        await supabase.from('categories').upsert([editingCategory]);
+      } catch (err) {
+        console.error('Supabase update failure: ', err);
+      }
+    }
     setEditingCategory(null);
     triggerAlert('Category adjustments saved successfully.');
   };
 
-  const deleteCategory = (id) => {
+  const deleteCategory = async (id) => {
     setCategories(categories.filter(c => c.id !== id));
+    if (dbStatus === 'connected') {
+      try {
+        await supabase.from('categories').delete().eq('id', id);
+      } catch (err) {
+        console.error('Supabase deletion failure: ', err);
+      }
+    }
     triggerAlert('Category deleted from system.');
   };
 
-  /* Brands Admin Operations */
-  const saveBrandEdit = (e) => {
+  const saveBrandEdit = async (e) => {
     e.preventDefault();
     setBrands(brands.map(b => b.id === editingBrand.id ? editingBrand : b));
+    if (dbStatus === 'connected') {
+      try {
+        await supabase.from('brands').upsert([mapBrandToDB(editingBrand)]);
+      } catch (err) {
+        console.error('Supabase update failure: ', err);
+      }
+    }
     setEditingBrand(null);
     triggerAlert('Brand adjustments saved successfully.');
   };
 
-  const deleteBrand = (id) => {
+  const deleteBrand = async (id) => {
     setBrands(brands.filter(b => b.id !== id));
+    if (dbStatus === 'connected') {
+      try {
+        await supabase.from('brands').delete().eq('id', id);
+      } catch (err) {
+        console.error('Supabase deletion failure: ', err);
+      }
+    }
     triggerAlert('Brand permanently deleted.');
   };
 
-  /* Products Admin Operations */
-  const saveProductEdit = (e) => {
+  const saveProductEdit = async (e) => {
     e.preventDefault();
     setProducts(products.map(p => p.id === editingProduct.id ? editingProduct : p));
+    if (dbStatus === 'connected') {
+      try {
+        await supabase.from('products').upsert([mapProductToDB(editingProduct)]);
+      } catch (err) {
+        console.error('Supabase product save failure: ', err);
+      }
+    }
     setEditingProduct(null);
     triggerAlert('Hardware Model index adjustments saved.');
   };
 
-  const deleteProduct = (id) => {
+  const deleteProduct = async (id) => {
     setProducts(products.filter(p => p.id !== id));
+    if (dbStatus === 'connected') {
+      try {
+        await supabase.from('products').delete().eq('id', id);
+      } catch (err) {
+        console.error('Supabase deletion failure: ', err);
+      }
+    }
     triggerAlert('Hardware Index permanently removed.');
   };
 
-  /* Store Admin Operations */
-  const saveStoreProductEdit = (e) => {
+  const saveStoreProductEdit = async (e) => {
     e.preventDefault();
     setStoreProducts(storeProducts.map(sp => sp.id === editingStoreProduct.id ? editingStoreProduct : sp));
+    if (dbStatus === 'connected') {
+      try {
+        await supabase.from('store_products').upsert([mapStoreProductToDB(editingStoreProduct)]);
+      } catch (err) {
+        console.error('Supabase update failure: ', err);
+      }
+    }
     setEditingStoreProduct(null);
     triggerAlert('Reward Store item adjusted.');
   };
 
-  /* Client Database Helper Actions */
   const toggleSelectUser = (id) => {
     if (selectedUserIds.includes(id)) {
       setSelectedUserIds(selectedUserIds.filter(uid => uid !== id));
@@ -882,7 +1191,6 @@ export default function App() {
     }
   };
 
-  /* Anonymous Secure CSV Exporter */
   const exportSelectedUsersCSV = () => {
     if (selectedUserIds.length === 0) {
       triggerAlert('Please select at least one user to export data.', 'error');
@@ -892,7 +1200,6 @@ export default function App() {
     const exportList = users.filter(u => selectedUserIds.includes(u.id));
     
     let csvRows = [];
-    /* Define Columns Header */
     csvRows.push(['User ID', 'Name', 'Email Address', 'Phone Number', 'Account Role', 'Contributions Point', 'Registration Date', 'Reports Submitted', 'Brands Created', 'Models Indexed', 'Votes Registered'].join(','));
 
     exportList.forEach(u => {
@@ -908,10 +1215,10 @@ export default function App() {
         u.role,
         u.points,
         u.joinedAt,
-        u.activity.reportsSubmitted,
-        u.activity.brandsCreated,
-        u.activity.modelsIndexed,
-        u.activity.votesCast
+        u.activity?.reportsSubmitted || 0,
+        u.activity?.brandsCreated || 0,
+        u.activity?.modelsIndexed || 0,
+        u.activity?.votesCast || 0
       ];
       csvRows.push(row.join(','));
     });
@@ -928,7 +1235,6 @@ export default function App() {
     triggerAlert(`Exported ${exportList.length} users successfully!`);
   };
 
-  /* Memoized Filters respecting ACTIVE status for general audience */
   const activeCategories = useMemo(() => {
     return categories.filter(c => c.active !== false);
   }, [categories]);
@@ -973,21 +1279,20 @@ export default function App() {
     return matches.sort((a, b) => a.faultScore - b.faultScore)[0] || null;
   }, [activeProduct, activeProducts]);
 
-  /* Filtered Users list inside Admin database */
   const filteredUsersList = useMemo(() => {
     return users.filter(u => {
       const query = userSearchQuery.toLowerCase().trim();
       return (
-        u.name.toLowerCase().includes(query) ||
-        u.email.toLowerCase().includes(query) ||
-        u.phone.includes(query) ||
-        u.id.includes(query)
+        u.name?.toLowerCase().includes(query) ||
+        u.email?.toLowerCase().includes(query) ||
+        u.phone?.includes(query) ||
+        u.id?.includes(query)
       );
     });
   }, [users, userSearchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#FAF9FC] text-slate-800 font-sans flex flex-col justify-between relative overflow-x-hidden text-left">
+    <div className="min-h-screen bg-[#FAF9FC] text-slate-800 font-sans flex flex-col justify-between relative overflow-x-hidden text-left animate-fadeIn">
       
       {/* Background radial blobs */}
       <div className="absolute top-0 inset-x-0 h-[600px] bg-gradient-to-b from-indigo-50/40 via-[#F5F2F7] to-transparent pointer-events-none -z-10" />
@@ -1001,7 +1306,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Header navbar */}
+      {/* Main Header bar */}
       <header className="border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-40 px-4 py-3.5 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           
@@ -1010,8 +1315,17 @@ export default function App() {
               -1
             </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tight text-slate-900">
+              <h1 className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2">
                 Check<span className="text-[#F41B5E]">Minus1</span>
+                {dbStatus === 'connected' ? (
+                  <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black tracking-widest px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Database className="w-2.5 h-2.5" /> LIVE
+                  </span>
+                ) : (
+                  <span className="bg-amber-100 text-amber-800 text-[9px] font-black tracking-widest px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Database className="w-2.5 h-2.5" /> CACHED
+                  </span>
+                )}
               </h1>
               <p className="text-[10px] text-slate-500 font-semibold tracking-wide">Crowdsourced Fault Indices</p>
             </div>
@@ -1101,7 +1415,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Order Complete View */}
+      {}
       {currentView === 'thank-you' && lastOrderDetails && (
         <div className="max-w-2xl mx-auto my-16 p-8 bg-white border border-slate-100 rounded-3xl shadow-2xl text-center animate-fadeIn">
           <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -1133,8 +1447,7 @@ export default function App() {
         </div>
       )}
 
-      { }
-      {/* Index Landing view */}
+      {/* Landing Index View */}
       {currentView === 'index' && (
         <>
           <section className="max-w-7xl mx-auto w-full px-4 pt-6 sm:px-6 lg:px-8">
@@ -1247,6 +1560,7 @@ export default function App() {
               </div>
             </div>
 
+            {}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
               <aside className="lg:col-span-1">
                 <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm lg:sticky lg:top-24">
@@ -1376,7 +1690,7 @@ export default function App() {
         </>
       )}
 
-      {/* Store Rewards module */}
+      {/* Reward Store View */}
       {currentView === 'store' && (
         <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow animate-fadeIn">
           <div className="flex justify-between items-center mb-8 border-b pb-4">
@@ -1421,7 +1735,7 @@ export default function App() {
         </main>
       )}
 
-      {/* User contributions Dashboard view */}
+      {/* User Dashboard View */}
       {currentView === 'user-dashboard' && (
         <main className="max-w-4xl mx-auto px-4 py-8 w-full flex-grow space-y-6 text-left">
           <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1466,10 +1780,18 @@ export default function App() {
                   </div>
                   <button
                     disabled={userPoints < 200}
-                    onClick={() => {
+                    onClick={async () => {
                       setUserPoints(prev => prev - 200);
-                      if (currentUserId) {
-                        setUsers(prev => prev.map(u => u.id === currentUserId ? { ...u, points: u.points - 200 } : u));
+                      const nextUsers = users.map(u => u.id === currentUserId ? { ...u, points: u.points - 200 } : u);
+                      setUsers(nextUsers);
+
+                      const targetUser = nextUsers.find(u => u.id === currentUserId);
+                      if (dbStatus === 'connected' && targetUser) {
+                        try {
+                          await supabase.from('profiles').upsert([mapUserToDB(targetUser)]);
+                        } catch (err) {
+                          console.error('Points deduct error: ', err);
+                        }
                       }
                       triggerAlert('Redeem Success! Discount code dispatched to registered mail.');
                     }}
@@ -1519,7 +1841,7 @@ export default function App() {
         </main>
       )}
 
-      {/* Admin Dashboard module */}
+      {}
       {currentView === 'admin-dashboard' && userRole === 'admin' && (
         <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow space-y-8 animate-fadeIn text-left">
           
@@ -1535,7 +1857,6 @@ export default function App() {
             </span>
           </div>
 
-          {/* Admin Section Tabs Navigation */}
           <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
             <button
               onClick={() => setAdminTab('client-db')}
@@ -1579,7 +1900,7 @@ export default function App() {
             </button>
           </div>
 
-          {/* ADMIN TAB 1: CLIENT DATABASE & EXPORTER */}
+          {/* Client database section inside admin tab */}
           {adminTab === 'client-db' && (
             <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -1616,7 +1937,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Users Grid Database */}
               <div className="overflow-x-auto border rounded-2xl">
                 <table className="w-full text-xs text-slate-600">
                   <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider text-[10px] font-black border-b">
@@ -1641,7 +1961,7 @@ export default function App() {
                       <th className="p-3 text-center">Activity Logs</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody className="divide-y text-left">
                     {filteredUsersList.map(u => (
                       <React.Fragment key={u.id}>
                         <tr className={`hover:bg-slate-50/50 ${expandedUserId === u.id ? 'bg-indigo-50/10' : ''}`}>
@@ -1657,7 +1977,7 @@ export default function App() {
                           <td className="p-3">
                             <div className="flex items-center gap-2.5">
                               <div className="w-8 h-8 rounded-full bg-violet-50 text-indigo-600 font-extrabold flex items-center justify-center border">
-                                {u.name[0]}
+                                {u.name ? u.name[0] : 'U'}
                               </div>
                               <div>
                                 <p className="font-extrabold text-slate-800 flex items-center gap-1.5">
@@ -1693,14 +2013,13 @@ export default function App() {
                           </td>
                         </tr>
 
-                        {/* Expandable Activity Details Row */}
                         {expandedUserId === u.id && (
                           <tr>
                             <td colSpan="7" className="p-4 bg-slate-50 border-t border-b text-slate-700">
                               <div className="space-y-3">
                                 <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Client Contributions Log History</h4>
                                 {u.activity?.details && u.activity.details.length > 0 ? (
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-left">
                                     {u.activity.details.map((act, index) => (
                                       <div key={index} className="bg-white p-3 rounded-xl border flex flex-col justify-between shadow-sm">
                                         <div>
@@ -1732,7 +2051,8 @@ export default function App() {
             </div>
           )}
 
-          {/* ADMIN TAB 2: CATEGORY CRUD */}
+          {}
+          {/* Categories control tab */}
           {adminTab === 'categories' && (
             <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-6">
               <div className="flex justify-between items-center border-b pb-4">
@@ -1769,9 +2089,17 @@ export default function App() {
                         <Edit3 className="w-3.5 h-3.5 text-indigo-500" /> Edit
                       </button>
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           const updatedState = c.active !== false ? false : true;
-                          setCategories(categories.map(item => item.id === c.id ? { ...item, active: updatedState } : item));
+                          const nextCats = categories.map(item => item.id === c.id ? { ...item, active: updatedState } : item);
+                          setCategories(nextCats);
+                          if (dbStatus === 'connected') {
+                            try {
+                              await supabase.from('categories').upsert([nextCats.find(item => item.id === c.id)]);
+                            } catch (e) {
+                              console.error('Category toggle fail: ', e);
+                            }
+                          }
                           triggerAlert(`Category set to ${updatedState ? 'Active' : 'Inactive'}`);
                         }}
                         className="p-2 rounded-xl border bg-white text-slate-600 hover:bg-slate-100 flex items-center justify-center"
@@ -1793,7 +2121,7 @@ export default function App() {
             </div>
           )}
 
-          {/* ADMIN TAB 3: BRANDS CRUD */}
+          {/* Brands control tab */}
           {adminTab === 'brands' && (
             <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-6">
               <div className="flex justify-between items-center border-b pb-4">
@@ -1812,7 +2140,7 @@ export default function App() {
               {pendingBrands.length > 0 && (
                 <div className="border border-amber-200 bg-amber-50/40 p-4 rounded-2xl space-y-3">
                   <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest block">Proposed Brand Approvals Awaiting</span>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-left">
                     {pendingBrands.map(pb => (
                       <div key={pb.id} className="bg-white p-3 rounded-xl border flex justify-between items-center">
                         <div className="flex items-center gap-2">
@@ -1846,7 +2174,7 @@ export default function App() {
                 {brands.map(b => {
                   const catParent = categories.find(c => c.id === b.categoryId);
                   return (
-                    <div key={b.id} className="p-4 bg-slate-50 rounded-2xl border flex flex-col justify-between gap-3">
+                    <div key={b.id} className="p-4 bg-slate-50 rounded-2xl border flex flex-col justify-between gap-3 text-left">
                       <div className="flex gap-3 justify-between items-start">
                         <div className="flex items-center gap-3">
                           <img src={b.logoUrl} alt="" className="w-10 h-10 rounded-full border object-cover bg-white" />
@@ -1868,9 +2196,17 @@ export default function App() {
                           <Edit3 className="w-3.5 h-3.5 text-indigo-500" /> Edit
                         </button>
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             const updatedState = b.active !== false ? false : true;
-                            setBrands(brands.map(item => item.id === b.id ? { ...item, active: updatedState } : item));
+                            const nextBrands = brands.map(item => item.id === b.id ? { ...item, active: updatedState } : item);
+                            setBrands(nextBrands);
+                            if (dbStatus === 'connected') {
+                              try {
+                                await supabase.from('brands').upsert([mapBrandToDB(nextBrands.find(item => item.id === b.id))]);
+                              } catch (e) {
+                                console.error('Brand toggle failure: ', e);
+                              }
+                            }
                             triggerAlert(`Brand set to ${updatedState ? 'Active' : 'Inactive'}`);
                           }}
                           className="p-2 rounded-xl border bg-white text-slate-600 hover:bg-slate-100 flex items-center justify-center"
@@ -1893,7 +2229,7 @@ export default function App() {
             </div>
           )}
 
-          {/* ADMIN TAB 4: PRODUCTS CRUD */}
+          {/* Model Indexes control tab */}
           {adminTab === 'indexes' && (
             <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-6">
               <div className="flex justify-between items-center border-b pb-4">
@@ -1909,10 +2245,9 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-left">
                 {products.map(p => {
                   const br = brands.find(b => b.id === p.brandId);
-                  const ct = categories.find(c => c.id === p.categoryId);
                   return (
                     <div key={p.id} className="bg-slate-50 rounded-2xl border p-4 flex flex-col justify-between gap-4">
                       <div className="space-y-2">
@@ -1939,9 +2274,17 @@ export default function App() {
                           <Edit3 className="w-3.5 h-3.5 text-indigo-500" /> Edit
                         </button>
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             const updatedState = p.active !== false ? false : true;
-                            setProducts(products.map(item => item.id === p.id ? { ...item, active: updatedState } : item));
+                            const nextProducts = products.map(item => item.id === p.id ? { ...item, active: updatedState } : item);
+                            setProducts(nextProducts);
+                            if (dbStatus === 'connected') {
+                              try {
+                                await supabase.from('products').upsert([mapProductToDB(nextProducts.find(item => item.id === p.id))]);
+                              } catch (e) {
+                                console.error('Product active toggle failure: ', e);
+                              }
+                            }
                             triggerAlert(`Product set to ${updatedState ? 'Active' : 'Inactive'}`);
                           }}
                           className="p-2 rounded-xl border bg-white text-slate-600 hover:bg-slate-100 flex items-center justify-center"
@@ -1964,9 +2307,10 @@ export default function App() {
             </div>
           )}
 
-          {/* ADMIN TAB 5: REWARD STORE PRODUCTS CRUD */}
+          {}
+          {/* Store CRUD section */}
           {adminTab === 'store-crud' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
               <div className="lg:col-span-1 bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-4">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
                   <ShoppingBag className="w-4 h-4 text-[#F41B5E]" /> Create Store Product
@@ -2060,7 +2404,7 @@ export default function App() {
                   Live Store Products ({storeProducts.length})
                 </h3>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[420px] overflow-y-auto pr-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[420px] overflow-y-auto pr-1.5 text-left">
                   {storeProducts.map(sp => (
                     <div key={sp.id} className="p-3 bg-slate-50 border rounded-2xl flex items-center gap-3 justify-between">
                       <div className="flex items-center gap-3">
@@ -2083,9 +2427,17 @@ export default function App() {
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             const updatedState = sp.active !== false ? false : true;
-                            setStoreProducts(storeProducts.map(item => item.id === sp.id ? { ...item, active: updatedState } : item));
+                            const nextStoreProducts = storeProducts.map(item => item.id === sp.id ? { ...item, active: updatedState } : item);
+                            setStoreProducts(nextStoreProducts);
+                            if (dbStatus === 'connected') {
+                              try {
+                                await supabase.from('store_products').upsert([mapStoreProductToDB(nextStoreProducts.find(item => item.id === sp.id))]);
+                              } catch (e) {
+                                console.error('Store active toggle failure: ', e);
+                              }
+                            }
                             triggerAlert(`Product set to ${updatedState ? 'Active' : 'Inactive'}`);
                           }}
                           className="p-1.5 text-slate-400 hover:text-slate-700 bg-white border rounded-xl"
@@ -2107,8 +2459,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Demographic Insights */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 text-left">
             <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Traffic Geographic Locations</h3>
               <div className="space-y-3.5">
@@ -2181,7 +2532,7 @@ export default function App() {
         </main>
       )}
 
-      {/* Cart side panel slider */}
+      {}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-end">
           <div className="bg-white w-full max-w-md h-full shadow-2xl p-6 flex flex-col justify-between overflow-y-auto animate-slideIn">
@@ -2321,13 +2672,12 @@ export default function App() {
         </div>
       )}
 
-      {/* Inspect hardware details modal overlay */}
       {activeProduct && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-100 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative animate-fadeIn max-h-[90vh] overflow-y-auto">
             
             <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-slate-50/50">
-              <div>
+              <div className="text-left">
                 <span className="text-[10px] uppercase tracking-wider text-slate-400 font-extrabold block mb-1">Product Insight Timeline</span>
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900">{activeProduct.modelName}</h3>
               </div>
@@ -2353,8 +2703,7 @@ export default function App() {
                 <p className="text-xs text-slate-600 italic leading-relaxed font-semibold">"{activeProduct.description}"</p>
               </div>
 
-              {/* Vector degradation path */}
-              <div className="space-y-2">
+              <div className="space-y-2 text-left">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Fault Index Progression Line Curve</span>
                 <div className="bg-[#FAF9FC] border p-4 rounded-3xl h-44 relative flex items-end">
                   <svg className="absolute inset-0 h-full w-full p-4" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -2376,13 +2725,12 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Upvote triggers */}
               <div className="space-y-2">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Top Observed Defects</span>
                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                   {activeProduct.faults.map(f => (
                     <div key={f.id} className="flex justify-between items-center text-xs bg-slate-50 border p-3 rounded-2xl">
-                      <div>
+                      <div className="text-left">
                         <span className="font-bold text-slate-800 block">{f.text}</span>
                         <span className="text-[9px] text-slate-400">Confirmed by {f.votes} gadget owners</span>
                       </div>
@@ -2397,7 +2745,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Smart Alternative Recommendations Integration */}
               {suggestedAlternative ? (
                 <div className="bg-emerald-50/60 border border-emerald-100 p-4 rounded-2xl space-y-3">
                   <div className="flex items-center gap-2 text-emerald-800">
@@ -2405,7 +2752,7 @@ export default function App() {
                     <span className="text-xs font-black uppercase tracking-wider">Recommended Better Alternative</span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-3 rounded-xl border shadow-sm">
-                    <div>
+                    <div className="text-left">
                       <p className="text-xs font-extrabold text-slate-800">{suggestedAlternative.modelName}</p>
                       <span className="text-[10px] font-black text-emerald-500">Fault Score: only -{suggestedAlternative.faultScore}%</span>
                     </div>
@@ -2438,9 +2785,7 @@ export default function App() {
         </div>
       )}
 
-      {/* --- ALL POPUP OVERLAYS & CRUD EDITORS --- */}
-
-      {/* 1. Category Creator Form */}
+      {/* Category Creation Form */}
       {showCategoryForm && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={handleCategoryUpload} className="bg-white p-6 rounded-3xl w-full max-w-sm space-y-4 text-left shadow-2xl animate-fadeIn">
@@ -2466,7 +2811,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Category Editor */}
       {editingCategory && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={saveCategoryEdit} className="bg-white p-6 rounded-3xl w-full max-w-sm space-y-4 text-left shadow-2xl animate-fadeIn">
@@ -2491,7 +2835,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 2. Brand Propose & Index Form */}
+      {/* Brand Proposal form */}
       {showBrandForm && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={handleBrandUpload} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left animate-fadeIn">
@@ -2562,7 +2906,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Brand Editor */}
       {editingBrand && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={saveBrandEdit} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left animate-fadeIn">
@@ -2610,7 +2953,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 3. Product Model Indexing Form */}
+      {/* Model Index form */}
       {showProductForm && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={handleProductUpload} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left animate-fadeIn">
@@ -2710,7 +3053,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Product Editor */}
       {editingProduct && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={saveProductEdit} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left animate-fadeIn">
@@ -2790,7 +3132,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Store Product Editor */}
+      {/* Reward Store product editor */}
       {editingStoreProduct && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={saveStoreProductEdit} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left animate-fadeIn">
@@ -2850,7 +3192,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 4. Bug reporter form overlay */}
+      {/* Problem submission overlay */}
       {showProblemForm && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={handleProblemSubmission} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left animate-fadeIn">
@@ -2897,7 +3239,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 5. Complete Authentication gate (Signup/Login) */}
+      {/* Authentication Popup */}
       {showAuthModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl text-left animate-fadeIn">
@@ -2986,7 +3328,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Footer information section */}
+      {}
       <footer className="bg-[#1E202B] text-slate-400 pt-16 pb-8 border-t border-slate-800 mt-16 text-xs text-left w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
           
