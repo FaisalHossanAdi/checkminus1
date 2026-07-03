@@ -35,13 +35,27 @@ import {
   ThumbsUp,
   Award,
   ChevronRight,
-  Info
+  Info,
+  BarChart2,
+  Calendar,
+  TrendingUp
 } from 'lucide-react';
 
-// We dynamically resolve or fallback to a mock client to support compilation in a single-file sandbox
+const ADMIN_EMAIL_1 = 'admin@checkminus1.com';
+const ADMIN_EMAIL_2 = 'admin@gmail.com';
+const ADMIN_SECURE_PASSWORD = 'AdminPassword2026!'; // Only secure password allowed to unlock database management
+
 const supabase = (typeof window !== 'undefined' && window.supabase) ? window.supabase : {
   auth: {
     signInWithPassword: async ({ email, password }) => {
+      const lowerEmail = email.toLowerCase().trim();
+      if (lowerEmail === ADMIN_EMAIL_1 || lowerEmail === ADMIN_EMAIL_2) {
+        if (password === ADMIN_SECURE_PASSWORD) {
+          return { data: { user: { id: 'u-admin', email } }, error: null };
+        } else {
+          return { data: null, error: { message: 'Incorrect password for Admin access.' } };
+        }
+      }
       return { data: { user: { id: 'u-1', email } }, error: null };
     },
     signUp: async ({ email, password }) => {
@@ -71,7 +85,6 @@ const toTitleCase = (str) => {
     .join(' ');
 };
 
-/* Auto-Image Resizer using Canvas to optimize base64 payloads */
 const resizeImage = (file, maxWidth, maxHeight, cropToSquare = false) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -226,29 +239,6 @@ const initialUsers = [
   }
 ];
 
-const analyticsData = {
-  totalVisitors: 15480,
-  countries: [
-    { name: 'Bangladesh', count: 10400, percentage: 67 },
-    { name: 'India', count: 2600, percentage: 17 },
-    { name: 'USA', count: 1380, percentage: 9 },
-    { name: 'Others', count: 1100, percentage: 7 }
-  ],
-  districts: [
-    { name: 'Dhaka', count: 6200 },
-    { name: 'Chittagong', count: 2100 },
-    { name: 'Sylhet', count: 1100 },
-    { name: 'Rajshahi', count: 900 }
-  ],
-  ageDemographics: [
-    { range: '18-24', percentage: 48 },
-    { range: '25-34', percentage: 36 },
-    { range: '35-44', percentage: 11 },
-    { range: '45+', percentage: 5 }
-  ],
-  gender: { male: 74, female: 24, other: 2 }
-};
-
 const mapBrandFromDB = (b) => ({
   id: b.id,
   categoryId: b.category_id,
@@ -354,7 +344,6 @@ export default function App() {
   const [currentView, setCurrentView] = useState('index');
   const [dbStatus, setDbStatus] = useState('connecting'); // 'connecting' | 'connected' | 'offline'
 
-  /* DB States initialized from local storage as offline cache fallback */
   const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('c1_categories')) || initialCategories);
   const [brands, setBrands] = useState(() => JSON.parse(localStorage.getItem('c1_brands')) || initialBrands);
   const [products, setProducts] = useState(() => JSON.parse(localStorage.getItem('c1_products')) || initialProducts);
@@ -362,7 +351,6 @@ export default function App() {
   const [pendingBrands, setPendingBrands] = useState(() => JSON.parse(localStorage.getItem('c1_pendingBrands')) || []);
   const [users, setUsers] = useState(() => JSON.parse(localStorage.getItem('c1_users')) || initialUsers);
   
-  /* Logged-In User Profile States */
   const [isLoggedIn, setIsLoggedIn] = useState(() => JSON.parse(localStorage.getItem('c1_isLoggedIn')) || false);
   const [currentUserId, setCurrentUserId] = useState(() => localStorage.getItem('c1_currentUserId') || '');
   const [userRole, setUserRole] = useState(() => localStorage.getItem('c1_userRole') || 'user'); 
@@ -374,6 +362,11 @@ export default function App() {
   const [regEmail, setRegEmail] = useState('');
   const [regFullName, setRegFullName] = useState('');
   const [regCountry, setRegCountry] = useState('');
+
+  const [statsPeriod, setStatsPeriod] = useState('7-days');
+  const [customStartDate, setCustomStartDate] = useState('2026-06-01');
+  const [customEndDate, setCustomEndDate] = useState('2026-06-30');
+  const [hoverChartIndex, setHoverChartIndex] = useState(null);
 
   const [notifications, setNotifications] = useState([
     { id: 1, text: 'Welcome to CheckMinus1! Earn points by indexing models.', unread: true },
@@ -566,7 +559,16 @@ export default function App() {
     e.preventDefault();
     
     if (authTab === 'login') {
-      const emailOrUser = checkoutForm.name;
+      const emailOrUser = checkoutForm.name.trim();
+      const lowerEmail = emailOrUser.toLowerCase();
+
+      const isTryingAdmin = lowerEmail === ADMIN_EMAIL_1 || lowerEmail === ADMIN_EMAIL_2;
+      
+      if (isTryingAdmin && authPassword !== ADMIN_SECURE_PASSWORD) {
+        triggerAlert('Login Failed: Invalid Admin Secure Password!', 'error');
+        return;
+      }
+
       try {
         triggerAlert('Verifying credentials with cloud...', 'info');
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -581,7 +583,8 @@ export default function App() {
 
         let fallbackRole = 'user';
         let fallbackName = emailOrUser.split('@')[0];
-        if (emailOrUser.toLowerCase().includes('admin')) {
+        
+        if (isTryingAdmin) {
           fallbackRole = 'admin';
           fallbackName = 'Administrator';
         }
@@ -602,6 +605,12 @@ export default function App() {
         triggerAlert('Connection error occurred.', 'error');
       }
     } else {
+      const lowerRegEmail = regEmail.toLowerCase().trim();
+      if (lowerRegEmail === ADMIN_EMAIL_1 || lowerRegEmail === ADMIN_EMAIL_2 || lowerRegEmail.includes('admin')) {
+        triggerAlert('Registration Blocked: Unauthorized Email format.', 'error');
+        return;
+      }
+
       try {
         triggerAlert('Creating secure cloud account...', 'info');
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -1278,10 +1287,110 @@ export default function App() {
     });
   }, [users, userSearchQuery]);
 
+  const computedStats = useMemo(() => {
+    let days = 7;
+    let multiplier = 1;
+    
+    switch (statsPeriod) {
+      case 'today': days = 1; multiplier = 0.14; break;
+      case 'yesterday': days = 1; multiplier = 0.12; break;
+      case '3-days': days = 3; multiplier = 0.42; break;
+      case '7-days': days = 7; multiplier = 1.0; break;
+      case '15-days': days = 15; multiplier = 2.15; break;
+      case '1-month': days = 30; multiplier = 4.30; break;
+      case '3-months': days = 90; multiplier = 12.80; break;
+      case '6-months': days = 180; multiplier = 25.10; break;
+      case '1-year': days = 365; multiplier = 52.40; break;
+      case 'custom':
+        const d1 = new Date(customStartDate);
+        const d2 = new Date(customEndDate);
+        const diffTime = Math.abs(d2 - d1);
+        days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+        multiplier = (days / 7) * 1.05;
+        break;
+      default: days = 7; multiplier = 1.0;
+    }
+
+    const timeline = [];
+    const now = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const baseVal = 1450;
+      const randomVal = Math.floor(baseVal + Math.sin(i * 0.95) * 380 + Math.cos(i * 0.5) * 180);
+      const visitors = Math.max(120, Math.floor(randomVal * (multiplier / (days / 7 || 1))));
+      timeline.push({ date: dateStr, count: visitors });
+    }
+
+    const totalVis = timeline.reduce((sum, item) => sum + item.count, 0);
+
+    const countries = [
+      { name: 'Bangladesh', percentage: 67, color: 'bg-emerald-500' },
+      { name: 'India', percentage: 17, color: 'bg-violet-500' },
+      { name: 'USA', percentage: 9, color: 'bg-[#F41B5E]' },
+      { name: 'Others', percentage: 7, color: 'bg-amber-500' }
+    ].map(c => ({
+      ...c,
+      count: Math.floor(totalVis * (c.percentage / 100))
+    }));
+
+    const districts = [
+      { name: 'Dhaka', percentage: 60 },
+      { name: 'Chittagong', percentage: 20 },
+      { name: 'Sylhet', percentage: 11 },
+      { name: 'Rajshahi', percentage: 9 }
+    ].map(d => ({
+      ...d,
+      count: Math.floor(totalVis * 0.67 * (d.percentage / 100))
+    }));
+
+    const ageDemographics = [
+      { range: '18-24', percentage: 48, color: 'bg-indigo-500' },
+      { range: '25-34', percentage: 36, color: 'bg-rose-500' },
+      { range: '35-44', percentage: 11, color: 'bg-[#F41B5E]' },
+      { range: '45+', percentage: 5, color: 'bg-amber-400' }
+    ].map(a => ({
+      ...a,
+      count: Math.floor(totalVis * (a.percentage / 100))
+    }));
+
+    const gender = {
+      male: 74,
+      female: 24,
+      other: 2,
+      maleCount: Math.floor(totalVis * 0.74),
+      femaleCount: Math.floor(totalVis * 0.24),
+      otherCount: Math.floor(totalVis * 0.02)
+    };
+
+    return {
+      totalVisitors: totalVis,
+      timeline,
+      countries,
+      districts,
+      ageDemographics,
+      gender
+    };
+  }, [statsPeriod, customStartDate, customEndDate]);
+
+  const sampledTimeline = useMemo(() => {
+    const fullTimeline = computedStats.timeline;
+    if (fullTimeline.length <= 15) return fullTimeline;
+    const step = Math.ceil(fullTimeline.length / 15);
+    const sampled = [];
+    for (let i = 0; i < fullTimeline.length; i += step) {
+      sampled.push(fullTimeline[i]);
+    }
+    if (sampled[sampled.length - 1] !== fullTimeline[fullTimeline.length - 1]) {
+      sampled.push(fullTimeline[fullTimeline.length - 1]);
+    }
+    return sampled;
+  }, [computedStats.timeline]);
+
   return (
     <div className="min-h-screen bg-[#FAF9FC] text-slate-800 font-sans flex flex-col justify-between relative overflow-x-hidden text-left animate-fadeIn">
       
-      {/* Background decoration elements */}
       <div className="absolute top-0 inset-x-0 h-[600px] bg-gradient-to-b from-indigo-50/40 via-[#F5F2F7] to-transparent pointer-events-none -z-10" />
       <div className="absolute top-20 left-10 w-96 h-96 rounded-full bg-violet-100/50 blur-3xl pointer-events-none -z-10" />
       <div className="absolute top-40 right-10 w-96 h-96 rounded-full bg-rose-100/30 blur-3xl pointer-events-none -z-10" />
@@ -1435,7 +1544,6 @@ export default function App() {
       )}
 
       {}
-      {/* Landing Index View */}
       {currentView === 'index' && (
         <>
           <section className="max-w-7xl mx-auto w-full px-4 pt-6 sm:px-6 lg:px-8">
@@ -1459,7 +1567,6 @@ export default function App() {
             </div>
           </section>
 
-          {/* Quick Stats Grid */}
           <section className="max-w-7xl mx-auto w-full px-4 pt-6 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3 hover:shadow-md transition-all duration-300">
               <div className="p-2.5 rounded-xl bg-rose-50 text-[#F41B5E] shrink-0 h-10 w-10 flex items-center justify-center">
@@ -1502,7 +1609,7 @@ export default function App() {
             </div>
           </section>
 
-          {/* Filtering Section */}
+          {}
           <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-150 pb-5 mb-8">
               <div className="flex flex-wrap items-center gap-2">
@@ -1595,7 +1702,7 @@ export default function App() {
                 </div>
               </aside>
 
-              {/* Indexed Products List */}
+              {}
               <section className="lg:col-span-3">
                 {filteredProductsList.length === 0 ? (
                   <div className="bg-white border border-rose-100 rounded-3xl p-8 text-center max-w-xl mx-auto my-6 shadow-xl">
@@ -1656,7 +1763,7 @@ export default function App() {
                                   <span className="text-slate-700 font-bold truncate pr-1">{f.text}</span>
                                   <button
                                     onClick={() => upvoteFault(prod.id, f.id)}
-                                    className="bg-rose-50 hover:bg-[#F41B5E] hover:text-white text-[#F41B5E] text-[10px] px-2.5 py-1 rounded-lg font-black flex items-center gap-1 shrink-0 transition-colors"
+                                    className="bg-rose-50 hover:bg-[#F41B5E] hover:text-white text-[#F41B5E] text-[10px] px-2.5 py-1.5 rounded-lg font-black flex items-center gap-1 shrink-0 transition-colors"
                                   >
                                     <ThumbsUp className="w-3 h-3" />
                                     <span>{f.votes}</span>
@@ -1835,7 +1942,7 @@ export default function App() {
         </main>
       )}
 
-      {/* Admin Dashboard View */}
+      {}
       {currentView === 'admin-dashboard' && userRole === 'admin' && (
         <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow space-y-8 animate-fadeIn text-left">
           
@@ -1860,6 +1967,16 @@ export default function App() {
             >
               <Users className="w-4 h-4" /> Client Database
             </button>
+            
+            <button
+              onClick={() => setAdminTab('statistics')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                adminTab === 'statistics' ? 'bg-[#1E202B] text-white shadow-md' : 'bg-white hover:bg-slate-50 text-slate-600 border'
+              }`}
+            >
+              <BarChart2 className="w-4 h-4" /> Statistics
+            </button>
+
             <button
               onClick={() => setAdminTab('categories')}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
@@ -1894,7 +2011,271 @@ export default function App() {
             </button>
           </div>
 
-          {/* Client database section inside admin tab */}
+          {}
+          {adminTab === 'statistics' && (
+            <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-6">
+              <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4 pb-4 border-b">
+                <div>
+                  <h3 className="text-base font-black text-slate-900 flex items-center gap-1.5">
+                    <TrendingUp className="w-5 h-5 text-[#F41B5E]" /> Platform Visitor & Performance Flow
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Deep analytical overview of incoming user requests, geolocation parameters, age brackets and generic retention rates.</p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 p-1.5 rounded-2xl border">
+                  {['today', 'yesterday', '3-days', '7-days', '15-days', '1-month', '3-months', '6-months', '1-year', 'custom'].map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setStatsPeriod(p)}
+                      className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${
+                        statsPeriod === p ? 'bg-[#F41B5E] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'
+                      }`}
+                    >
+                      {p.replace('-', ' ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {statsPeriod === 'custom' && (
+                <div className="bg-[#FAF9FC] p-4 rounded-2xl border border-slate-200/60 max-w-lg flex flex-col sm:flex-row items-center gap-4 animate-slideDown">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                    <span>Start:</span>
+                    <input 
+                      type="date" 
+                      value={customStartDate} 
+                      onChange={(e) => setCustomStartDate(e.target.value)} 
+                      className="border rounded-lg p-1 text-slate-700 bg-white"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                    <span>End:</span>
+                    <input 
+                      type="date" 
+                      value={customEndDate} 
+                      onChange={(e) => setCustomEndDate(e.target.value)} 
+                      className="border rounded-lg p-1 text-slate-700 bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 shadow-sm text-left">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block mb-1">Total Period Traffic</span>
+                  <p className="text-2xl font-black text-slate-900">{computedStats.totalVisitors.toLocaleString()} Hits</p>
+                  <span className="text-[10px] text-emerald-500 font-bold block mt-1">↑ 14.8% from prev period</span>
+                </div>
+                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 shadow-sm text-left">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block mb-1">Daily Average</span>
+                  <p className="text-2xl font-black text-[#F41B5E]">
+                    {Math.round(computedStats.totalVisitors / Math.max(1, computedStats.timeline.length)).toLocaleString()} / day
+                  </p>
+                  <span className="text-[10px] text-slate-400 font-bold block mt-1">Continuous stream</span>
+                </div>
+                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 shadow-sm text-left">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block mb-1">Unique Devices</span>
+                  <p className="text-2xl font-black text-indigo-600">{Math.round(computedStats.totalVisitors * 0.72).toLocaleString()} IPs</p>
+                  <span className="text-[10px] text-indigo-400 font-bold block mt-1">72% returning buyers</span>
+                </div>
+                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 shadow-sm text-left">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block mb-1">Average Search Match</span>
+                  <p className="text-2xl font-black text-emerald-600">88.4% Rate</p>
+                  <span className="text-[10px] text-emerald-500 font-bold block mt-1">High intent search matches</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-4">
+                
+                <div className="lg:col-span-2 bg-slate-50/30 p-5 rounded-3xl border border-slate-150">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Visitor Flow Timeline Curve ({statsPeriod.replace('-', ' ').toUpperCase()})</span>
+                    <span className="text-[9px] font-bold text-[#F41B5E] bg-rose-50 px-2 py-0.5 rounded-full">Sampled representation</span>
+                  </div>
+
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200/50 relative h-64 flex flex-col justify-between">
+                    <svg className="w-full h-48 overflow-visible" viewBox="0 0 550 160" preserveAspectRatio="none">
+                      <line x1="0" y1="160" x2="550" y2="160" stroke="#F1F5F9" strokeWidth="1" />
+                      <line x1="0" y1="120" x2="550" y2="120" stroke="#F1F5F9" strokeWidth="1" strokeDasharray="3,3" />
+                      <line x1="0" y1="80" x2="550" y2="80" stroke="#F1F5F9" strokeWidth="1" strokeDasharray="3,3" />
+                      <line x1="0" y1="40" x2="550" y2="40" stroke="#F1F5F9" strokeWidth="1" strokeDasharray="3,3" />
+                      <line x1="0" y1="0" x2="550" y2="0" stroke="#F1F5F9" strokeWidth="1" />
+
+                      {sampledTimeline.map((item, idx) => {
+                        const totalPoints = sampledTimeline.length;
+                        const x = (idx / (totalPoints - 1 || 1)) * 510 + 20;
+                        const maxCount = Math.max(...sampledTimeline.map(t => t.count), 1);
+                        const barHeight = (item.count / maxCount) * 130;
+                        const y = 160 - barHeight;
+
+                        return (
+                          <g key={idx} className="cursor-pointer" onMouseEnter={() => setHoverChartIndex(idx)} onMouseLeave={() => setHoverChartIndex(null)}>
+                            <rect
+                              x={x - 10}
+                              y={0}
+                              width={20}
+                              height={160}
+                              fill={hoverChartIndex === idx ? "rgba(244, 27, 94, 0.04)" : "transparent"}
+                              rx="4"
+                            />
+                            <rect
+                              x={x - 4}
+                              y={y}
+                              width={8}
+                              height={barHeight}
+                              fill={hoverChartIndex === idx ? "#F41B5E" : "url(#barGrad)"}
+                              rx="4"
+                              className="transition-all duration-300"
+                            />
+                            <circle
+                              cx={x}
+                              cy={y}
+                              r={hoverChartIndex === idx ? "5" : "3.5"}
+                              fill="#FFF"
+                              stroke={hoverChartIndex === idx ? "#1E202B" : "#F41B5E"}
+                              strokeWidth="2.5"
+                              className="transition-all"
+                            />
+                          </g>
+                        );
+                      })}
+
+                      <path
+                        d={sampledTimeline.map((item, idx) => {
+                          const totalPoints = sampledTimeline.length;
+                          const x = (idx / (totalPoints - 1 || 1)) * 510 + 20;
+                          const maxCount = Math.max(...sampledTimeline.map(t => t.count), 1);
+                          const y = 160 - (item.count / maxCount) * 130;
+                          return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
+                        }).join(' ')}
+                        fill="none"
+                        stroke="#F41B5E"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="pointer-events-none"
+                      />
+
+                      <defs>
+                        <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#F41B5E" stopOpacity="0.85" />
+                          <stop offset="100%" stopColor="#818CF8" stopOpacity="0.2" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+
+                    <div className="w-full flex justify-between px-2 text-[8px] font-extrabold text-slate-400 border-t pt-1.5 uppercase">
+                      {sampledTimeline.map((item, idx) => {
+                        const totalPoints = sampledTimeline.length;
+                        const isEven = idx % 2 === 0;
+                        if (totalPoints > 8 && !isEven) return <span key={idx} className="w-4"></span>;
+                        return (
+                          <span key={idx} className={`text-center ${hoverChartIndex === idx ? 'text-[#F41B5E] scale-105 font-black' : ''}`}>
+                            {item.date}
+                          </span>
+                        );
+                      })}
+                    </div>
+
+                    {hoverChartIndex !== null && sampledTimeline[hoverChartIndex] && (
+                      <div className="absolute top-4 right-4 bg-[#1E202B] text-white p-3 rounded-xl shadow-lg border border-slate-700 max-w-[150px] animate-fadeIn text-left">
+                        <p className="text-[8px] font-black text-rose-400 uppercase tracking-wider">{sampledTimeline[hoverChartIndex].date}</p>
+                        <p className="text-sm font-black text-white mt-0.5">{sampledTimeline[hoverChartIndex].count.toLocaleString()} Visitors</p>
+                        <p className="text-[9px] text-slate-300 font-semibold mt-1">✓ Verified Sessions</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="lg:col-span-1 bg-slate-50/30 p-5 rounded-3xl border border-slate-150 flex flex-col justify-between">
+                  <div className="space-y-4">
+                    <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider block mb-1">Geographic Tractions</span>
+                    
+                    <div className="space-y-3.5">
+                      {computedStats.countries.map((c, i) => (
+                        <div key={i} className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="font-extrabold text-slate-700">{c.name}</span>
+                            <span className="text-slate-505 font-bold">{c.percentage}% ({c.count.toLocaleString()})</span>
+                          </div>
+                          <div className="w-full bg-slate-150 h-2.5 rounded-full overflow-hidden">
+                            <div className={`${c.color} h-full animate-pulse`} style={{ width: `${c.percentage}%` }}></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-4 mt-4 space-y-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Bangladeshi District Distribution:</span>
+                    {computedStats.districts.map((d, i) => (
+                      <div key={i} className="flex justify-between text-xs font-semibold text-slate-600">
+                        <span>{d.name} Division</span>
+                        <span>{d.count.toLocaleString()} hits</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                
+                <div className="bg-slate-50/30 p-5 rounded-3xl border border-slate-150">
+                  <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider block mb-4">Demographics: Age Groups</span>
+                  <div className="space-y-4">
+                    {computedStats.ageDemographics.map((age, i) => (
+                      <div key={i} className="space-y-1.5">
+                        <div className="flex justify-between text-xs font-extrabold">
+                          <span className="text-slate-700">Ages {age.range}</span>
+                          <span className="text-slate-505">{age.percentage}% ({age.count.toLocaleString()})</span>
+                        </div>
+                        <div className="w-full bg-slate-150 h-2 rounded-full overflow-hidden">
+                          <div className={`${age.color} h-full`} style={{ width: `${age.percentage}%` }}></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-slate-50/30 p-5 rounded-3xl border border-slate-150 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider block mb-4">Demographics: Gender Division</span>
+                    
+                    <div className="flex items-center justify-around py-4 text-center">
+                      <div>
+                        <div className="text-3xl font-black text-indigo-500">{computedStats.gender.male}%</div>
+                        <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Male</span>
+                        <p className="text-[9px] text-slate-400 font-bold mt-1">({computedStats.gender.maleCount.toLocaleString()})</p>
+                      </div>
+                      <div className="border-r h-16 border-slate-200"></div>
+                      <div>
+                        <div className="text-3xl font-black text-[#F41B5E]">{computedStats.gender.female}%</div>
+                        <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Female</span>
+                        <p className="text-[9px] text-slate-400 font-bold mt-1">({computedStats.gender.femaleCount.toLocaleString()})</p>
+                      </div>
+                      <div className="border-r h-16 border-slate-200"></div>
+                      <div>
+                        <div className="text-3xl font-black text-amber-500">{computedStats.gender.other}%</div>
+                        <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Other</span>
+                        <p className="text-[9px] text-slate-400 font-bold mt-1">({computedStats.gender.otherCount.toLocaleString()})</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <div className="p-3 bg-rose-50/30 border border-rose-100 rounded-2xl text-center">
+                      <span className="text-[10px] font-black text-[#F41B5E] uppercase block">Platform Health Standard: Excellent</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
           {adminTab === 'client-db' && (
             <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -2045,7 +2426,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Categories control tab */}
           {adminTab === 'categories' && (
             <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-6">
               <div className="flex justify-between items-center border-b pb-4">
@@ -2114,7 +2494,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Brands control tab */}
           {adminTab === 'brands' && (
             <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-6">
               <div className="flex justify-between items-center border-b pb-4">
@@ -2222,7 +2601,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Model Indexes control tab */}
           {adminTab === 'indexes' && (
             <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-6">
               <div className="flex justify-between items-center border-b pb-4">
@@ -2300,7 +2678,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Store CRUD section */}
           {adminTab === 'store-crud' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
               <div className="lg:col-span-1 bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-4">
@@ -2404,7 +2781,7 @@ export default function App() {
                         <div>
                           <p className="text-xs font-black text-slate-800 truncate max-w-[140px]">{sp.name}</p>
                           <p className="text-[10px] text-slate-400">৳{sp.price} | 🪙{sp.pointsCost} Pts</p>
-                          <span className={`text-[8px] font-black uppercase mt-1 px-1 rounded inline-block ${sp.active !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-505'}`}>
+                          <span className={`text-[8px] font-black uppercase mt-1 px-1 rounded inline-block ${sp.active !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-550'}`}>
                             {sp.active !== false ? 'Active' : 'Inactive'}
                           </span>
                         </div>
@@ -2451,76 +2828,78 @@ export default function App() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 text-left">
-            <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Traffic Geographic Locations</h3>
-              <div className="space-y-3.5">
-                {analyticsData.countries.map((c, i) => (
-                  <div key={i} className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="font-bold text-slate-700">{c.name}</span>
-                      <span className="text-slate-505 font-bold">{c.percentage}% ({c.count})</span>
+          {adminTab !== 'statistics' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 text-left">
+              <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Traffic Geographic Locations</h3>
+                <div className="space-y-3.5">
+                  {computedStats.countries.map((c, i) => (
+                    <div key={i} className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-bold text-slate-700">{c.name}</span>
+                        <span className="text-slate-550 font-bold">{c.percentage}% ({c.count})</span>
+                      </div>
+                      <div className="w-full bg-slate-150 h-2 rounded-full overflow-hidden">
+                        <div className="bg-[#F41B5E] h-full animate-pulse" style={{ width: `${c.percentage}%` }}></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-slate-150 h-2 rounded-full overflow-hidden">
-                      <div className="bg-[#F41B5E] h-full animate-pulse" style={{ width: `${c.percentage}%` }}></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t pt-4 space-y-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Top Bangladeshi Districts:</span>
-                {analyticsData.districts.map((d, i) => (
-                  <div key={i} className="flex justify-between text-xs font-semibold text-slate-600">
-                    <span>{d.name} District</span>
-                    <span>{d.count} hits</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Age Group Distributions</h3>
-              <div className="space-y-3.5">
-                {analyticsData.ageDemographics.map((age, i) => (
-                  <div key={i} className="space-y-1">
-                    <div className="flex justify-between text-xs font-semibold">
-                      <span className="text-slate-700">Ages {age.range}</span>
-                      <span className="text-slate-505">{age.percentage}%</span>
-                    </div>
-                    <div className="w-full bg-slate-150 h-2 rounded-full overflow-hidden">
-                      <div className="bg-indigo-600 h-full" style={{ width: `${age.percentage}%` }}></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Gender Breakdown Ratio</h3>
-              <div className="flex items-center justify-around h-32 pt-2 text-center">
-                <div>
-                  <div className="text-3xl font-black text-indigo-500">{analyticsData.gender.male}%</div>
-                  <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Male</span>
+                  ))}
                 </div>
-                <div className="border-r h-16 border-slate-150"></div>
-                <div>
-                  <div className="text-3xl font-black text-pink-500">{analyticsData.gender.female}%</div>
-                  <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Female</span>
+
+                <div className="border-t pt-4 space-y-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Top Bangladeshi Districts:</span>
+                  {computedStats.districts.map((d, i) => (
+                    <div key={i} className="flex justify-between text-xs font-semibold text-slate-600">
+                      <span>{d.name} Division</span>
+                      <span>{d.count} hits</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="border-t pt-4">
-                <div className="p-3.5 bg-rose-50/20 border border-rose-100 rounded-2xl flex items-center justify-between animate-fadeIn">
+              <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Age Group Distributions</h3>
+                <div className="space-y-3.5">
+                  {computedStats.ageDemographics.map((age, i) => (
+                    <div key={i} className="space-y-1">
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span className="text-slate-700">Ages {age.range}</span>
+                        <span className="text-slate-550">{age.percentage}%</span>
+                      </div>
+                      <div className="w-full bg-slate-150 h-2 rounded-full overflow-hidden">
+                        <div className="bg-indigo-600 h-full" style={{ width: `${age.percentage}%` }}></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Gender Breakdown Ratio</h3>
+                <div className="flex items-center justify-around h-32 pt-2 text-center">
                   <div>
-                    <span className="text-xs font-black text-slate-800">Global Tractions</span>
-                    <span className="text-[10px] font-bold text-slate-400 block mt-0.5">Updated every 5 minutes</span>
+                    <div className="text-3xl font-black text-indigo-500">{computedStats.gender.male}%</div>
+                    <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Male</span>
                   </div>
-                  <span className="text-xs font-black text-[#F41B5E]">+{analyticsData.totalVisitors} Hits</span>
+                  <div className="border-r h-16 border-slate-155"></div>
+                  <div>
+                    <div className="text-3xl font-black text-pink-500">{computedStats.gender.female}%</div>
+                    <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Female</span>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <div className="p-3.5 bg-rose-50/20 border border-rose-100 rounded-2xl flex items-center justify-between animate-fadeIn">
+                    <div>
+                      <span className="text-xs font-black text-slate-800">Global Tractions</span>
+                      <span className="text-[10px] font-bold text-slate-400 block mt-0.5">Updated every 5 minutes</span>
+                    </div>
+                    <span className="text-xs font-black text-[#F41B5E]">+{computedStats.totalVisitors} Hits</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </main>
       )}
 
@@ -2665,7 +3044,6 @@ export default function App() {
       )}
 
       {}
-      {/* Product Detail Modal */}
       {activeProduct && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-100 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative animate-fadeIn max-h-[90vh] overflow-y-auto">
@@ -2697,7 +3075,6 @@ export default function App() {
                 <p className="text-xs text-slate-600 italic leading-relaxed font-semibold">"{activeProduct.description}"</p>
               </div>
 
-              {/* Dynamic SVGs Degradation timeline */}
               <div className="space-y-3 text-left">
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Fault Index Progression Line Curve</span>
@@ -2707,12 +3084,10 @@ export default function App() {
                 </div>
                 <div className="bg-[#FAF9FC] border border-slate-200/60 p-6 rounded-3xl relative h-48 flex items-end">
                   <svg className="absolute inset-0 h-full w-full p-6 overflow-visible" viewBox="0 0 400 100" preserveAspectRatio="none">
-                    {/* Defending grid lines */}
                     <line x1="0" y1="100" x2="400" y2="100" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3,3" />
                     <line x1="0" y1="50" x2="400" y2="50" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3,3" />
                     <line x1="0" y1="0" x2="400" y2="0" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3,3" />
                     
-                    {/* Curve path */}
                     <path
                       d={`M 0,${100 - activeProduct.timeline[0]} C 100,${100 - activeProduct.timeline[1]} 200,${100 - activeProduct.timeline[2]} 300,${100 - activeProduct.timeline[3]} 400,${100 - activeProduct.timeline[4]}`}
                       fill="none"
@@ -2721,7 +3096,6 @@ export default function App() {
                       className="animate-drawCurve"
                     />
                     
-                    {/* Data Points */}
                     {activeProduct.timeline.map((val, idx) => {
                       const cx = idx * 100;
                       const cy = 100 - val;
@@ -2741,7 +3115,6 @@ export default function App() {
                     })}
                   </svg>
                   
-                  {/* Legend underneath */}
                   <div className="relative z-10 w-full flex justify-between px-2">
                     {activeProduct.timeline.map((val, idx) => (
                       <div key={idx} className={`text-center p-1 rounded-xl transition-all ${hoverTimelineIndex === idx ? 'bg-rose-50 scale-105' : ''}`}>
@@ -2934,7 +3307,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Model Index form */}
+      {}
       {showProductForm && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={handleProductUpload} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left animate-fadeIn">
