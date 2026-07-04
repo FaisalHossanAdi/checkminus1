@@ -45,6 +45,9 @@ import {
 const ADMIN_EMAIL_1 = 'admin@checkminus1.com';
 const ADMIN_EMAIL_2 = 'admin@gmail.com';
 const ADMIN_SECURE_PASSWORD = 'AdminPassword2026!'; // Only secure password allowed to unlock database management
+// ⚠️ নোট: এই পাসওয়ার্ড ব্রাউজারের কোডেই লেখা থাকে, তাই যে কেউ View Source করে এটা দেখে ফেলতে পারবে।
+// এটা শুধু ডেমো/প্রোটোটাইপের জন্য ঠিক আছে। আসল প্রোডাকশনে admin login পুরোপুরি Supabase auth
+// আর profiles.role = 'admin' চেক দিয়েই করানো উচিত (SQL স্ক্রিপ্টে সেটাই করা আছে)।
 
 const supabase = (typeof window !== 'undefined' && window.supabase) ? window.supabase : {
   auth: {
@@ -137,6 +140,14 @@ const resizeImage = (file, maxWidth, maxHeight, cropToSquare = false) => {
     };
     reader.onerror = (err) => reject(err);
   });
+  const handleProfilePicUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const resizedBase64 = await resizeImage(file, 200, 200, true);
+  await supabase.from('profiles').update({ avatar_url: resizedBase64 }).eq('id', currentUserId);
+  triggerAlert('প্রোফাইল ছবি আপডেট হয়েছে!');
+};
+<input type="file" accept="image/*" onChange={handleProfilePicUpload} className="text-xs" />
 };
 
 const initialCategories = [
@@ -388,6 +399,87 @@ export default function App() {
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutForm, setCheckoutForm] = useState({ name: '', address: '', phone: '', email: '', password: '', paymentMethod: 'cod' });
+  const [couponInput, setCouponInput] = useState('');
+const [appliedCouponCode, setAppliedCouponCode] = useState('');
+const [couponDiscount, setCouponDiscount] = useState(0);
+
+const applyCoupon = async () => {
+  if (!couponInput.trim()) return;
+  const { data, error } = await supabase.rpc('verify_redeem_code', { p_code: couponInput.trim().toUpperCase() });
+  const result = data && data[0];
+  if (error || !result) {
+    triggerAlert('ভুল কুপন কোড!', 'error');
+    return;
+  }
+  if (result.is_used) {
+    triggerAlert('এই কোডটি আগেই ব্যবহার হয়ে গেছে।', 'error');
+    return;
+  }
+  if (result.owner !== currentUserId) {
+    triggerAlert('এই কোডটি তোমার অ্যাকাউন্টের না।', 'error');
+    return;
+  }
+  setCouponDiscount(result.discount_amount);
+  setAppliedCouponCode(couponInput.trim().toUpperCase());
+  triggerAlert(`কুপন প্রয়োগ হয়েছে! ৳${result.discount_amount} ছাড় পাবে।`);
+};
+
+// ১ পয়েন্ট = কত টাকা ছাড়, এই রেট Supabase এর settings টেবিল থেকে লোড হয়
+const [pointsPerTaka, setPointsPerTaka] = useState(1);
+
+useEffect(() => {
+  const fetchRate = async () => {
+    try {
+      const { data } = await supabase.from('settings').select('value').eq('key', 'points_per_taka').single();
+      if (data) setPointsPerTaka(parseFloat(data.value));
+    } catch (err) {
+      console.error('Rate fetch failed:', err);
+    }
+  };
+  fetchRate();
+}, []);
+
+// Admin প্যানেল থেকে রেট পরিবর্তনের জন্য
+const [newRate, setNewRate] = useState('');
+
+const updateConversionRate = async () => {
+  if (!newRate) return;
+  await supabase.from('settings').upsert([{ key: 'points_per_taka', value: newRate }]);
+  setPointsPerTaka(parseFloat(newRate));
+  triggerAlert('কনভার্শন রেট আপডেট হয়েছে!');
+};
+
+// ইউজার পয়েন্ট রিডিম করে আসল কুপন কোড জেনারেট করবে
+const redeemPointsForCode = async (pointsToRedeem = 200) => {
+  if (userPoints < pointsToRedeem) {
+    triggerAlert('পর্যাপ্ত পয়েন্ট নেই!', 'error');
+    return;
+  }
+  const discountAmount = pointsToRedeem * pointsPerTaka;
+  const code = `RDM-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+  try {
+    const { error } = await supabase.from('redeem_codes').insert([{
+      code, user_id: currentUserId, points_used: pointsToRedeem, discount_amount: discountAmount
+    }]);
+    if (error) throw error;
+
+    const newPoints = userPoints - pointsToRedeem;
+    setUserPoints(newPoints);
+    const nextUsers = users.map(u => u.id === currentUserId ? { ...u, points: newPoints } : u);
+    setUsers(nextUsers);
+
+    if (dbStatus === 'connected') {
+      await supabase.from('profiles').update({ points: newPoints }).eq('id', currentUserId);
+    }
+
+    triggerAlert(`তোমার কুপন কোড: ${code} — Store এ কেনাকাটার সময় এই কোডটা বসাও (৳${discountAmount} ছাড়)।`, 'success');
+  } catch (err) {
+    console.error('Redeem code error:', err);
+    triggerAlert('কোড তৈরি করতে সমস্যা হয়েছে।', 'error');
+  }
+};
+
   const [countdown, setCountdown] = useState(10);
   const [lastOrderDetails, setLastOrderDetails] = useState(null);
 
@@ -598,18 +690,27 @@ export default function App() {
           return;
         }
 
-        let fallbackRole = 'user';
-        let fallbackName = emailOrUser.split('@')[0];
-        
-        if (isTryingAdmin) {
-          fallbackRole = 'admin';
-          fallbackName = 'Administrator';
-        }
+        const userId = authData?.user?.id;
+const { data: profileData } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('id', userId)
+  .single();
 
-        setIsLoggedIn(true);
-        setUserRole(fallbackRole);
-        setUsername(toTitleCase(fallbackName));
-        setCurrentUserId(authData?.user?.id || 'u-admin');
+const finalRole = profileData?.role || 'user';
+const finalName = profileData?.name || emailOrUser.split('@')[0];
+
+setIsLoggedIn(true);
+setUserRole(finalRole);
+setUsername(toTitleCase(finalName));
+setCurrentUserId(userId);
+setUserPoints(profileData?.points || 0);
+
+if (finalRole === 'admin') {
+  triggerAlert('Welcome Back, Admin! Portal Unlocked.');
+} else {
+  triggerAlert('Logged in successfully.');
+}
         
         if (fallbackRole === 'admin') {
           triggerAlert('Welcome Back, Admin! Portal Unlocked.');
@@ -640,28 +741,21 @@ export default function App() {
           return;
         }
 
-        const newProfileId = authData?.user?.id || `u-${Date.now()}`;
-        const newProfile = {
-          id: newProfileId,
-          name: regFullName,
-          phone: '01712345678',
-          email: regEmail,
-          role: 'user',
-          points: 250,
-          joinedAt: new Date().toISOString().split('T')[0],
-          activity: { reportsSubmitted: 0, brandsCreated: 0, modelsIndexed: 0, votesCast: 0, details: [] }
-        };
+        const newProfileId = authData?.user?.id;
 
-        setUsers([...users, newProfile]);
-        
-        // Pushing registration immediately to DB
-        if (dbStatus === 'connected') {
-          try {
-            await supabase.from('profiles').insert([mapUserToDB(newProfile)]);
-          } catch (err) {
-            console.error('Supabase profile creation error: ', err);
-          }
-        }
+if (!newProfileId) {
+  triggerAlert('অ্যাকাউন্ট তৈরি হয়েছে, কিন্তু ইমেইল ভেরিফাই করা লাগতে পারে। ইমেইল চেক করো।', 'info');
+} else {
+  // Trigger অটোমেটিক profile বানিয়ে দিয়েছে, এখন শুধু নাম/ফোন আপডেট করে দিচ্ছি
+  const { error: updateErr } = await supabase
+    .from('profiles')
+    .update({ name: regFullName, phone: regPhone || '' })
+    .eq('id', newProfileId);
+
+  if (updateErr) {
+    console.error('Profile update error:', updateErr);
+  }
+}
 
         triggerAlert('Account created successfully! Switching to login.', 'success');
         setAuthTab('login');
@@ -718,8 +812,10 @@ export default function App() {
     }
 
     const pointsTotal = cart.reduce((sum, item) => sum + item.pointsCost, 0);
-    const moneyTotal = cart.reduce((sum, item) => sum + item.price, 0);
-
+    const moneyTotal = Math.max(0, cart.reduce((sum, item) => sum + item.price, 0) - couponDiscount);
+if (appliedCouponCode) {
+  await supabase.from('redeem_codes').update({ is_used: true }).eq('code', appliedCouponCode);
+}
     if (checkoutForm.paymentMethod === 'points') {
       if (userPoints < pointsTotal) {
         triggerAlert('Insufficient points balance inside wallet!', 'error');
@@ -746,7 +842,41 @@ export default function App() {
       name: checkoutForm.name,
       phone: checkoutForm.phone
     });
+// অর্ডার ডাটাবেজে সেভ করা
+if (dbStatus === 'connected') {
+  try {
+    const { data: orderData, error: orderErr } = await supabase
+      .from('orders')
+      .insert([{
+        user_id: currentUserId,
+        customer_name: checkoutForm.name,
+        phone: checkoutForm.phone,
+        address: checkoutForm.address,
+        payment_method: checkoutForm.paymentMethod,
+        total_amount: moneyTotal,
+        points_used: checkoutForm.paymentMethod === 'points' ? pointsTotal : 0,
+        coupon_code: appliedCouponCode || null,
+        status: 'pending'
+      }])
+      .select()
+      .single();
 
+    if (orderErr) throw orderErr;
+
+    const itemsPayload = cart.map(item => ({
+      order_id: orderData.id,
+      store_product_id: item.id,
+      product_name: item.name,
+      price: item.price,
+      quantity: item.quantity || 1
+    }));
+    await supabase.from('order_items').insert(itemsPayload);
+  } catch (err) {
+    console.error('Order save failed:', err);
+    triggerAlert('অর্ডার সেভ করতে সমস্যা হয়েছে, আবার চেষ্টা করো।', 'error');
+    return;
+  }
+}
     setCart([]);
     setIsCartOpen(false);
     setCountdown(10);
@@ -1215,6 +1345,10 @@ export default function App() {
     triggerAlert('Reward Store item adjusted.');
   };
 
+  // নোট: SQL এর reviews টেবিল "ডেলিভারির পরেই রিভিউ" সিস্টেমের জন্য বানানো হয়েছিল,
+  // কিন্তু সেটার জন্য একটা "My Orders" পেজ দরকার (যেখানে ডেলিভার হওয়া আইটেম দেখা যাবে)।
+  // সেই পেজ এখনো এই ফাইলে নেই, তাই এখন আগের সহজ ভার্সনটাই রাখা হলো যাতে কোড ভেঙে না যায়।
+  // চাইলে পরে "My Orders" পেজ বানিয়ে আসল ভেরিফাইড রিভিউ সিস্টেমে upgrade করা যাবে।
   const handleStoreReview = (productId, points) => {
     if (!isLoggedIn) return;
     triggerAlert(`Review submitted successfully! You earned ${points} points.`, 'success');
@@ -1222,7 +1356,6 @@ export default function App() {
     logUserActivity(currentUserId, 'Vote', 'Store Purchase Review', `Earned ${points} pts for review`);
     setActiveStoreProduct(null);
   };
-
   const toggleSelectUser = (id) => {
     if (selectedUserIds.includes(id)) {
       setSelectedUserIds(selectedUserIds.filter(uid => uid !== id));
@@ -1928,21 +2061,7 @@ export default function App() {
                   </div>
                   <button
                     disabled={userPoints < 200}
-                    onClick={async () => {
-                      setUserPoints(prev => prev - 200);
-                      const nextUsers = users.map(u => u.id === currentUserId ? { ...u, points: u.points - 200 } : u);
-                      setUsers(nextUsers);
-
-                      const targetUser = nextUsers.find(u => u.id === currentUserId);
-                      if (dbStatus === 'connected' && targetUser) {
-                        try {
-                          await supabase.from('profiles').upsert([mapUserToDB(targetUser)]);
-                        } catch (err) {
-                          console.error('Points deduct error: ', err);
-                        }
-                      }
-                      triggerAlert('Redeem Success! Discount code dispatched to registered mail.');
-                    }}
+                    onClick={() => redeemPointsForCode(200)}
                     className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-300 ${
                       userPoints >= 200 ? 'bg-[#F41B5E] text-white hover:bg-rose-600 shadow-md' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
@@ -2726,6 +2845,15 @@ export default function App() {
 
           {adminTab === 'store-crud' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
+              <div className="lg:col-span-3 p-4 bg-slate-50 rounded-2xl border">
+                <label className="text-xs font-bold text-slate-500 uppercase">১ পয়েন্ট = কত টাকা ছাড়? (বর্তমান রেট: {pointsPerTaka})</label>
+                <div className="flex gap-2 mt-2 max-w-sm">
+                  <input type="number" step="0.1" value={newRate} onChange={(e) => setNewRate(e.target.value)}
+                    className="flex-1 border p-2 rounded-xl text-xs" placeholder="যেমন: 1" />
+                  <button onClick={updateConversionRate} className="bg-[#F41B5E] text-white px-4 rounded-xl text-xs font-bold">Save</button>
+                </div>
+              </div>
+
               <div className="lg:col-span-1 bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-4">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
                   <ShoppingBag className="w-4 h-4 text-[#F41B5E]" /> Create Store Product
