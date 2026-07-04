@@ -140,14 +140,6 @@ const resizeImage = (file, maxWidth, maxHeight, cropToSquare = false) => {
     };
     reader.onerror = (err) => reject(err);
   });
-  const handleProfilePicUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const resizedBase64 = await resizeImage(file, 200, 200, true);
-  await supabase.from('profiles').update({ avatar_url: resizedBase64 }).eq('id', currentUserId);
-  triggerAlert('প্রোফাইল ছবি আপডেট হয়েছে!');
-};
-<input type="file" accept="image/*" onChange={handleProfilePicUpload} className="text-xs" />
 };
 
 const initialCategories = [
@@ -711,12 +703,6 @@ if (finalRole === 'admin') {
 } else {
   triggerAlert('Logged in successfully.');
 }
-        
-        if (fallbackRole === 'admin') {
-          triggerAlert('Welcome Back, Admin! Portal Unlocked.');
-        } else {
-          triggerAlert('Logged in successfully.');
-        }
         setShowAuthModal(false);
         setAuthPassword('');
       } catch (err) {
@@ -749,7 +735,7 @@ if (!newProfileId) {
   // Trigger অটোমেটিক profile বানিয়ে দিয়েছে, এখন শুধু নাম/ফোন আপডেট করে দিচ্ছি
   const { error: updateErr } = await supabase
     .from('profiles')
-    .update({ name: regFullName, phone: regPhone || '' })
+    .update({ name: regFullName, phone: '' })
     .eq('id', newProfileId);
 
   if (updateErr) {
