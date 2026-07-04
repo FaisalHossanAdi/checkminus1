@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { supabase } from './supabaseClient';
 import { 
   ShieldCheck, 
   Plus, 
@@ -27,53 +28,15 @@ import {
   Edit3,
   Eye,
   EyeOff,
+  Download,
   Users,
+  Settings,
+  ShieldAlert,
   FileSpreadsheet,
   CheckSquare,
   Square,
-  Database,
-  ThumbsUp,
-  Award,
-  ChevronRight,
-  Info,
-  BarChart2,
-  Calendar,
-  TrendingUp
+  Database
 } from 'lucide-react';
-
-const ADMIN_EMAIL_1 = 'admin@checkminus1.com';
-const ADMIN_EMAIL_2 = 'admin@gmail.com';
-const ADMIN_SECURE_PASSWORD = 'AdminPassword2026!'; // Only secure password allowed to unlock database management
-
-const supabase = (typeof window !== 'undefined' && window.supabase) ? window.supabase : {
-  auth: {
-    signInWithPassword: async ({ email, password }) => {
-      const lowerEmail = email.toLowerCase().trim();
-      if (lowerEmail === ADMIN_EMAIL_1 || lowerEmail === ADMIN_EMAIL_2) {
-        if (password === ADMIN_SECURE_PASSWORD) {
-          return { data: { user: { id: 'u-admin', email } }, error: null };
-        } else {
-          return { data: null, error: { message: 'Incorrect password for Admin access.' } };
-        }
-      }
-      return { data: { user: { id: 'u-1', email } }, error: null };
-    },
-    signUp: async ({ email, password }) => {
-      return { data: { user: { id: `u-${Date.now()}`, email } }, error: null };
-    }
-  },
-  from: (table) => ({
-    select: () => ({
-      order: () => Promise.resolve({ data: [], error: null }),
-      eq: () => ({ single: () => Promise.resolve({ data: null, error: null }) }),
-      then: (cb) => cb({ data: [], error: null })
-    }),
-    insert: () => Promise.resolve({ data: null, error: null }),
-    upsert: () => Promise.resolve({ data: null, error: null }),
-    update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
-    delete: () => ({ eq: () => Promise.resolve({ data: null, error: null }) })
-  })
-};
 
 const toTitleCase = (str) => {
   if (!str) return '';
@@ -85,6 +48,7 @@ const toTitleCase = (str) => {
     .join(' ');
 };
 
+/* Auto-Image Resizer using Canvas to optimize base64 payloads */
 const resizeImage = (file, maxWidth, maxHeight, cropToSquare = false) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -239,6 +203,29 @@ const initialUsers = [
   }
 ];
 
+const analyticsData = {
+  totalVisitors: 15480,
+  countries: [
+    { name: 'Bangladesh', count: 10400, percentage: 67 },
+    { name: 'India', count: 2600, percentage: 17 },
+    { name: 'USA', count: 1380, percentage: 9 },
+    { name: 'Others', count: 1100, percentage: 7 }
+  ],
+  districts: [
+    { name: 'Dhaka', count: 6200 },
+    { name: 'Chittagong', count: 2100 },
+    { name: 'Sylhet', count: 1100 },
+    { name: 'Rajshahi', count: 900 }
+  ],
+  ageDemographics: [
+    { range: '18-24', percentage: 48 },
+    { range: '25-34', percentage: 36 },
+    { range: '35-44', percentage: 11 },
+    { range: '45+', percentage: 5 }
+  ],
+  gender: { male: 74, female: 24, other: 2 }
+};
+
 const mapBrandFromDB = (b) => ({
   id: b.id,
   categoryId: b.category_id,
@@ -344,6 +331,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState('index');
   const [dbStatus, setDbStatus] = useState('connecting'); // 'connecting' | 'connected' | 'offline'
 
+  /* DB States initialized from local storage as offline cache fallback */
   const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('c1_categories')) || initialCategories);
   const [brands, setBrands] = useState(() => JSON.parse(localStorage.getItem('c1_brands')) || initialBrands);
   const [products, setProducts] = useState(() => JSON.parse(localStorage.getItem('c1_products')) || initialProducts);
@@ -351,22 +339,13 @@ export default function App() {
   const [pendingBrands, setPendingBrands] = useState(() => JSON.parse(localStorage.getItem('c1_pendingBrands')) || []);
   const [users, setUsers] = useState(() => JSON.parse(localStorage.getItem('c1_users')) || initialUsers);
   
+  /* Logged-In User Profile States */
   const [isLoggedIn, setIsLoggedIn] = useState(() => JSON.parse(localStorage.getItem('c1_isLoggedIn')) || false);
   const [currentUserId, setCurrentUserId] = useState(() => localStorage.getItem('c1_currentUserId') || '');
   const [userRole, setUserRole] = useState(() => localStorage.getItem('c1_userRole') || 'user'); 
   const [username, setUsername] = useState(() => localStorage.getItem('c1_username') || 'Guest Contributor');
   const [userPoints, setUserPoints] = useState(() => parseInt(localStorage.getItem('c1_userPoints')) || 250); 
   const [userVotes, setUserVotes] = useState(() => JSON.parse(localStorage.getItem('c1_user_votes')) || {});
-
-  const [authPassword, setAuthPassword] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regFullName, setRegFullName] = useState('');
-  const [regCountry, setRegCountry] = useState('');
-
-  const [statsPeriod, setStatsPeriod] = useState('7-days');
-  const [customStartDate, setCustomStartDate] = useState('2026-06-01');
-  const [customEndDate, setCustomEndDate] = useState('2026-06-30');
-  const [hoverChartIndex, setHoverChartIndex] = useState(null);
 
   const [notifications, setNotifications] = useState([
     { id: 1, text: 'Welcome to CheckMinus1! Earn points by indexing models.', unread: true },
@@ -384,7 +363,6 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedBrand, setSelectedBrand] = useState('all');
   const [activeProduct, setActiveProduct] = useState(null);
-  const [hoverTimelineIndex, setHoverTimelineIndex] = useState(null);
   
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [showBrandForm, setShowBrandForm] = useState(false);
@@ -431,9 +409,14 @@ export default function App() {
 
   useEffect(() => {
     const fetchSupabaseData = async () => {
+      if (!supabase) {
+        setDbStatus('offline');
+        return;
+      }
       try {
         setDbStatus('connecting');
 
+        // Helper function to query safe DB states without breaking on single table fail
         const fetchTable = async (tableName) => {
           try {
             const { data, error } = await supabase.from(tableName).select('*');
@@ -487,6 +470,7 @@ export default function App() {
     fetchSupabaseData();
   }, []);
 
+  /* Local Storage updates as offline cache backup */
   useEffect(() => {
     localStorage.setItem('c1_categories', JSON.stringify(categories));
     localStorage.setItem('c1_brands', JSON.stringify(brands));
@@ -533,7 +517,7 @@ export default function App() {
         if (type === 'Index') updatedActivity.modelsIndexed = (updatedActivity.modelsIndexed || 0) + 1;
         if (type === 'Vote') updatedActivity.votesCast = (updatedActivity.votesCast || 0) + 1;
 
-        const updatedPoints = u.points + (type === 'Index' ? 10 : type === 'Report' ? 5 : 1);
+        const updatedPoints = u.points + (type === 'Index' ? 10 : type === 'Report' ? 5 : 0);
         updatedUserObj = { ...u, activity: updatedActivity, points: updatedPoints };
         return updatedUserObj;
       }
@@ -627,13 +611,25 @@ export default function App() {
         const newProfile = {
           id: newProfileId,
           name: regFullName,
-          phone: '01712345678',
+          phone: '01712345678', // default phone number template for new users
           email: regEmail,
           role: 'user',
-          points: 250,
+          points: 250, // Welcome point allocation
           joinedAt: new Date().toISOString().split('T')[0],
           activity: { reportsSubmitted: 0, brandsCreated: 0, modelsIndexed: 0, votesCast: 0, details: [] }
         };
+
+        if (supabase) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert([mapUserToDB(newProfile)]);
+          
+          if (profileError) {
+            console.error("Profile insertion failed in Supabase:", profileError);
+            triggerAlert(`Auth complete, but failed to save profile: ${profileError.message}`, 'error');
+            return;
+          }
+        }
 
         setUsers([...users, newProfile]);
         triggerAlert('Account created successfully! Switching to login.', 'success');
@@ -883,7 +879,7 @@ export default function App() {
       categoryId: prodCatId, 
       modelName: formattedModel,
       faultScore: 10, 
-      timeline: [5, 12, 18, 25, 32],
+      timeline: [5, 10, 15, 20, 25],
       description: prodDesc || 'No user-submitted description provided yet.',
       affiliateLink: 'https://amazon.com/s?k=' + encodeURIComponent(formattedModel),
       imageUrl: prodImagePreview || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300', 
@@ -1287,110 +1283,10 @@ export default function App() {
     });
   }, [users, userSearchQuery]);
 
-  const computedStats = useMemo(() => {
-    let days = 7;
-    let multiplier = 1;
-    
-    switch (statsPeriod) {
-      case 'today': days = 1; multiplier = 0.14; break;
-      case 'yesterday': days = 1; multiplier = 0.12; break;
-      case '3-days': days = 3; multiplier = 0.42; break;
-      case '7-days': days = 7; multiplier = 1.0; break;
-      case '15-days': days = 15; multiplier = 2.15; break;
-      case '1-month': days = 30; multiplier = 4.30; break;
-      case '3-months': days = 90; multiplier = 12.80; break;
-      case '6-months': days = 180; multiplier = 25.10; break;
-      case '1-year': days = 365; multiplier = 52.40; break;
-      case 'custom':
-        const d1 = new Date(customStartDate);
-        const d2 = new Date(customEndDate);
-        const diffTime = Math.abs(d2 - d1);
-        days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
-        multiplier = (days / 7) * 1.05;
-        break;
-      default: days = 7; multiplier = 1.0;
-    }
-
-    const timeline = [];
-    const now = new Date();
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(now.getDate() - i);
-      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const baseVal = 1450;
-      const randomVal = Math.floor(baseVal + Math.sin(i * 0.95) * 380 + Math.cos(i * 0.5) * 180);
-      const visitors = Math.max(120, Math.floor(randomVal * (multiplier / (days / 7 || 1))));
-      timeline.push({ date: dateStr, count: visitors });
-    }
-
-    const totalVis = timeline.reduce((sum, item) => sum + item.count, 0);
-
-    const countries = [
-      { name: 'Bangladesh', percentage: 67, color: 'bg-emerald-500' },
-      { name: 'India', percentage: 17, color: 'bg-violet-500' },
-      { name: 'USA', percentage: 9, color: 'bg-[#F41B5E]' },
-      { name: 'Others', percentage: 7, color: 'bg-amber-500' }
-    ].map(c => ({
-      ...c,
-      count: Math.floor(totalVis * (c.percentage / 100))
-    }));
-
-    const districts = [
-      { name: 'Dhaka', percentage: 60 },
-      { name: 'Chittagong', percentage: 20 },
-      { name: 'Sylhet', percentage: 11 },
-      { name: 'Rajshahi', percentage: 9 }
-    ].map(d => ({
-      ...d,
-      count: Math.floor(totalVis * 0.67 * (d.percentage / 100))
-    }));
-
-    const ageDemographics = [
-      { range: '18-24', percentage: 48, color: 'bg-indigo-500' },
-      { range: '25-34', percentage: 36, color: 'bg-rose-500' },
-      { range: '35-44', percentage: 11, color: 'bg-[#F41B5E]' },
-      { range: '45+', percentage: 5, color: 'bg-amber-400' }
-    ].map(a => ({
-      ...a,
-      count: Math.floor(totalVis * (a.percentage / 100))
-    }));
-
-    const gender = {
-      male: 74,
-      female: 24,
-      other: 2,
-      maleCount: Math.floor(totalVis * 0.74),
-      femaleCount: Math.floor(totalVis * 0.24),
-      otherCount: Math.floor(totalVis * 0.02)
-    };
-
-    return {
-      totalVisitors: totalVis,
-      timeline,
-      countries,
-      districts,
-      ageDemographics,
-      gender
-    };
-  }, [statsPeriod, customStartDate, customEndDate]);
-
-  const sampledTimeline = useMemo(() => {
-    const fullTimeline = computedStats.timeline;
-    if (fullTimeline.length <= 15) return fullTimeline;
-    const step = Math.ceil(fullTimeline.length / 15);
-    const sampled = [];
-    for (let i = 0; i < fullTimeline.length; i += step) {
-      sampled.push(fullTimeline[i]);
-    }
-    if (sampled[sampled.length - 1] !== fullTimeline[fullTimeline.length - 1]) {
-      sampled.push(fullTimeline[fullTimeline.length - 1]);
-    }
-    return sampled;
-  }, [computedStats.timeline]);
-
   return (
     <div className="min-h-screen bg-[#FAF9FC] text-slate-800 font-sans flex flex-col justify-between relative overflow-x-hidden text-left animate-fadeIn">
       
+      {/* Background radial blobs */}
       <div className="absolute top-0 inset-x-0 h-[600px] bg-gradient-to-b from-indigo-50/40 via-[#F5F2F7] to-transparent pointer-events-none -z-10" />
       <div className="absolute top-20 left-10 w-96 h-96 rounded-full bg-violet-100/50 blur-3xl pointer-events-none -z-10" />
       <div className="absolute top-40 right-10 w-96 h-96 rounded-full bg-rose-100/30 blur-3xl pointer-events-none -z-10" />
@@ -1402,7 +1298,7 @@ export default function App() {
         </div>
       )}
 
-      {}
+      {/* Main Header bar */}
       <header className="border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-40 px-4 py-3.5 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           
@@ -1415,7 +1311,7 @@ export default function App() {
                 Check<span className="text-[#F41B5E]">Minus1</span>
                 {dbStatus === 'connected' ? (
                   <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black tracking-widest px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <Database className="w-2.5 h-2.5 animate-pulse" /> LIVE
+                    <Database className="w-2.5 h-2.5" /> LIVE
                   </span>
                 ) : (
                   <span className="bg-amber-100 text-amber-800 text-[9px] font-black tracking-widest px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -1436,7 +1332,7 @@ export default function App() {
               placeholder="Search Samsung, MacBook, Cat VPN..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#FAF9FC] text-slate-800 placeholder-slate-400 pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:border-[#F41B5E] focus:bg-white focus:outline-none transition-all text-xs shadow-inner"
+              className="w-full bg-[#FAF9FC] text-slate-800 placeholder-slate-400 pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:border-[#F41B5E] focus:bg-white focus:outline-none transition-all text-xs"
             />
             {fuzzyBrands.length > 0 && (
               <div className="absolute top-11 left-0 right-0 bg-white border border-slate-100 rounded-xl shadow-xl z-50 p-2 text-xs">
@@ -1459,7 +1355,7 @@ export default function App() {
             <button 
               onClick={() => setCurrentView('store')}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                currentView === 'store' ? 'bg-[#F41B5E] text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                currentView === 'store' ? 'bg-[#F41B5E] text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
               }`}
             >
               <ShoppingBag className="w-4 h-4" />
@@ -1470,7 +1366,7 @@ export default function App() {
               <button
                 onClick={() => setCurrentView(userRole === 'admin' ? 'admin-dashboard' : 'user-dashboard')}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                  ['user-dashboard', 'admin-dashboard'].includes(currentView) ? 'bg-[#F41B5E] text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  ['user-dashboard', 'admin-dashboard'].includes(currentView) ? 'bg-[#F41B5E] text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 {userRole === 'admin' ? <ShieldCheck className="w-4 h-4" /> : <User className="w-4 h-4" />}
@@ -1511,11 +1407,11 @@ export default function App() {
         </div>
       </header>
 
-      {/* Thank you Order view */}
+      {}
       {currentView === 'thank-you' && lastOrderDetails && (
         <div className="max-w-2xl mx-auto my-16 p-8 bg-white border border-slate-100 rounded-3xl shadow-2xl text-center animate-fadeIn">
           <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-10 h-10 animate-scaleIn" />
+            <CheckCircle className="w-10 h-10" />
           </div>
           <h2 className="text-3xl font-black text-slate-900 mb-2">Thank You For Your Order!</h2>
           <p className="text-sm text-slate-500 mb-6">Your order has been recorded successfully and is currently being processed.</p>
@@ -1543,24 +1439,23 @@ export default function App() {
         </div>
       )}
 
-      {}
+      {/* Landing Index View */}
       {currentView === 'index' && (
         <>
           <section className="max-w-7xl mx-auto w-full px-4 pt-6 sm:px-6 lg:px-8">
             <div className="relative rounded-3xl overflow-hidden h-[240px] sm:h-[300px] shadow-lg border border-slate-100 group">
               <div 
-                className="absolute inset-0 bg-cover bg-center filter brightness-[0.5] transition-all duration-700 group-hover:scale-105"
+                className="absolute inset-0 bg-cover bg-center filter brightness-[0.5] transition-all"
                 style={{ backgroundImage: `url(https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80)` }}
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#11121c] via-transparent to-transparent z-10" />
-              <div className="absolute inset-0 flex flex-col justify-center p-8 text-white z-20">
-                <span className="self-start bg-[#F41B5E] text-[9px] font-black uppercase px-2.5 py-1 rounded-full mb-3 tracking-widest flex items-center gap-1">
-                  <Award className="w-3.5 h-3.5" /> Truth Indexes Only
+              <div className="absolute inset-0 flex flex-col justify-center p-8 text-white z-10">
+                <span className="self-start bg-[#F41B5E] text-[9px] font-black uppercase px-2.5 py-1 rounded-full mb-2 tracking-widest">
+                  Truth Indexes Only
                 </span>
-                <h2 className="text-2xl sm:text-4xl font-black mb-3 max-w-lg leading-tight">
+                <h2 className="text-2xl sm:text-3xl font-black mb-2 max-w-lg leading-tight">
                   Don't Buy Regrets! Check Hidden Product Faults First.
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-200 max-w-sm">
+                <p className="text-xs text-slate-200 max-w-sm">
                   We crowdsource verified defects and product degradation timelines so you can make informed decisions.
                 </p>
               </div>
@@ -1568,7 +1463,7 @@ export default function App() {
           </section>
 
           <section className="max-w-7xl mx-auto w-full px-4 pt-6 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3 hover:shadow-md transition-all duration-300">
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3">
               <div className="p-2.5 rounded-xl bg-rose-50 text-[#F41B5E] shrink-0 h-10 w-10 flex items-center justify-center">
                 <Activity className="w-5 h-5" />
               </div>
@@ -1578,7 +1473,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3 hover:shadow-md transition-all duration-300">
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3">
               <div className="p-2.5 rounded-xl bg-violet-50 text-indigo-600 shrink-0 h-10 w-10 flex items-center justify-center">
                 <HeartCrack className="w-5 h-5" />
               </div>
@@ -1588,7 +1483,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3 hover:shadow-md transition-all duration-300">
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3">
               <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 shrink-0 h-10 w-10 flex items-center justify-center">
                 <Coins className="w-5 h-5" />
               </div>
@@ -1598,7 +1493,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3 hover:shadow-md transition-all duration-300">
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex gap-3">
               <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 shrink-0 h-10 w-10 flex items-center justify-center">
                 <Clock className="w-5 h-5" />
               </div>
@@ -1609,13 +1504,12 @@ export default function App() {
             </div>
           </section>
 
-          {}
           <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-150 pb-5 mb-8">
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => { setSelectedCategory('all'); setSelectedBrand('all'); }}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                     selectedCategory === 'all' ? 'bg-[#1E202B] text-white shadow-md' : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 shadow-sm'
                   }`}
                 >
@@ -1625,7 +1519,7 @@ export default function App() {
                   <button
                     key={cat.id}
                     onClick={() => { setSelectedCategory(cat.id); setSelectedBrand('all'); }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                       selectedCategory === cat.id ? 'bg-[#1E202B] text-white shadow-md' : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 shadow-sm'
                     }`}
                   >
@@ -1640,7 +1534,7 @@ export default function App() {
                     if (!isLoggedIn) { triggerAlert('Please sign in first to report defects.', 'error'); setAuthTab('login'); setShowAuthModal(true); return; }
                     setShowProblemForm(true);
                   }}
-                  className="bg-white hover:bg-slate-100 text-[#F41B5E] border border-slate-200 font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
+                  className="bg-white hover:bg-slate-50 text-[#F41B5E] border border-slate-200 font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
                   Report Fault
@@ -1658,6 +1552,7 @@ export default function App() {
               </div>
             </div>
 
+            {}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
               <aside className="lg:col-span-1">
                 <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm lg:sticky lg:top-24">
@@ -1679,7 +1574,7 @@ export default function App() {
                   <div className="flex flex-col gap-2 max-h-[500px] overflow-y-auto pr-1">
                     <button
                       onClick={() => setSelectedBrand('all')}
-                      className={`p-3 rounded-2xl border flex items-center justify-between transition-all duration-200 ${
+                      className={`p-3 rounded-2xl border flex items-center justify-between transition-all ${
                         selectedBrand === 'all' ? 'border-[#F41B5E] bg-rose-50/20 text-slate-800 font-extrabold' : 'border-slate-200/60 bg-white text-slate-700 hover:border-slate-300'
                       }`}
                     >
@@ -1690,7 +1585,7 @@ export default function App() {
                       <button
                         key={b.id}
                         onClick={() => setSelectedBrand(b.id)}
-                        className={`p-3 rounded-2xl border flex items-center gap-3 transition-all duration-200 ${
+                        className={`p-3 rounded-2xl border flex items-center gap-3 transition-all ${
                           selectedBrand === b.id ? 'border-[#F41B5E] bg-rose-50/20 text-slate-800 font-extrabold' : 'border-slate-200/60 bg-white text-slate-700 hover:border-slate-300'
                         }`}
                       >
@@ -1702,7 +1597,6 @@ export default function App() {
                 </div>
               </aside>
 
-              {}
               <section className="lg:col-span-3">
                 {filteredProductsList.length === 0 ? (
                   <div className="bg-white border border-rose-100 rounded-3xl p-8 text-center max-w-xl mx-auto my-6 shadow-xl">
@@ -1733,7 +1627,7 @@ export default function App() {
                     {filteredProductsList.map(prod => {
                       const brand = brands.find(b => b.id === prod.brandId);
                       return (
-                        <div key={prod.id} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
+                        <div key={prod.id} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden">
                           <div>
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-2">
@@ -1749,12 +1643,10 @@ export default function App() {
                             </div>
 
                             {prod.imageUrl && (
-                              <div className="w-full h-36 overflow-hidden rounded-2xl mb-3 border border-slate-100">
-                                <img src={prod.imageUrl} alt={prod.modelName} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                              </div>
+                              <img src={prod.imageUrl} alt={prod.modelName} className="w-full h-36 object-cover rounded-2xl mb-3 border border-slate-100" />
                             )}
 
-                            <h3 className="text-lg font-black text-slate-900 mb-1 group-hover:text-[#F41B5E] transition-colors">{prod.modelName}</h3>
+                            <h3 className="text-lg font-black text-slate-900 mb-1">{prod.modelName}</h3>
                             <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed font-semibold">{prod.description}</p>
 
                             <div className="space-y-1.5 mb-4">
@@ -1763,10 +1655,10 @@ export default function App() {
                                   <span className="text-slate-700 font-bold truncate pr-1">{f.text}</span>
                                   <button
                                     onClick={() => upvoteFault(prod.id, f.id)}
-                                    className="bg-rose-50 hover:bg-[#F41B5E] hover:text-white text-[#F41B5E] text-[10px] px-2.5 py-1.5 rounded-lg font-black flex items-center gap-1 shrink-0 transition-colors"
+                                    className="bg-rose-50 hover:bg-rose-100 text-[#F41B5E] text-[10px] px-2 py-0.5 rounded-lg font-black flex items-center gap-1 shrink-0 transition-colors"
                                   >
-                                    <ThumbsUp className="w-3 h-3" />
-                                    <span>{f.votes}</span>
+                                    <span>-1</span>
+                                    <span className="text-slate-400">{f.votes}</span>
                                   </button>
                                 </div>
                               ))}
@@ -1775,7 +1667,7 @@ export default function App() {
 
                           <button
                             onClick={() => setActiveProduct(prod)}
-                            className="w-full bg-violet-50 hover:bg-indigo-600 hover:text-white text-indigo-600 font-bold text-xs py-2.5 rounded-xl transition-all duration-300 text-center block"
+                            className="w-full bg-violet-50 hover:bg-violet-100 text-indigo-600 font-bold text-xs py-2 rounded-xl transition-colors text-center block"
                           >
                             Inspect Timeline Details
                           </button>
@@ -1790,42 +1682,41 @@ export default function App() {
         </>
       )}
 
-      {/* Rewards Store View */}
+      {/* Reward Store View */}
       {currentView === 'store' && (
         <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 w-full flex-grow animate-fadeIn">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b pb-5">
+          <div className="flex justify-between items-center mb-8 border-b pb-4">
             <div>
               <h2 className="text-2xl font-black text-slate-900">CheckMinus1 Reward Store</h2>
-              <p className="text-xs text-slate-500 mt-1">Spend your contribution points to redeem amazing rewards and premium accessories.</p>
+              <p className="text-xs text-slate-500">Spend your points or purchase verified protections.</p>
             </div>
             {isLoggedIn && (
-              <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2.5 rounded-2xl flex items-center gap-2 text-xs font-black self-start">
-                <Coins className="w-4 h-4 text-amber-500 animate-bounce" />
-                <span>My Points Balance: {userPoints} Pts</span>
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2 rounded-2xl flex items-center gap-1.5 text-xs font-black">
+                <Coins className="w-4 h-4 text-amber-500 animate-spin" />
+                <span>My Points Balance: {userPoints}</span>
               </div>
             )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {activeStoreProducts.map(p => (
-              <div key={p.id} className="bg-white border border-slate-150 rounded-3xl overflow-hidden shadow-sm flex flex-col justify-between hover:shadow-lg transition-all duration-300">
-                <div className="h-48 overflow-hidden border-b relative">
-                  <img src={p.image} alt={p.name} className="w-full h-full object-cover hover:scale-105 transition-all duration-500" />
-                  <span className="absolute top-3 right-3 bg-amber-400 text-white font-black text-[10px] px-2 py-1 rounded-full flex items-center gap-1 shadow">
-                    🪙 {p.pointsCost} Pts
-                  </span>
-                </div>
+              <div key={p.id} className="bg-white border border-slate-150 rounded-3xl overflow-hidden shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
+                <img src={p.image} alt={p.name} className="w-full h-48 object-cover border-b" />
                 <div className="p-4 space-y-3 text-left">
-                  <h3 className="text-sm font-extrabold text-slate-800 line-clamp-1">{p.name}</h3>
+                  <h3 className="text-xs font-extrabold text-slate-800 line-clamp-1">{p.name}</h3>
                   <div className="flex justify-between items-center">
                     <div className="text-left">
                       <span className="text-[10px] text-slate-400 block font-bold">Standard Price</span>
                       <span className="text-sm font-black text-slate-900">৳ {p.price}</span>
                     </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-amber-600 block font-bold">Point Buy</span>
+                      <span className="text-xs font-black text-amber-500">🪙 {p.pointsCost} Pts</span>
+                    </div>
                   </div>
                   <button
                     onClick={() => addToCart(p)}
-                    className="w-full bg-[#F41B5E] hover:bg-rose-600 text-white font-extrabold text-xs py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    className="w-full bg-[#F41B5E] hover:bg-rose-600 text-white font-extrabold text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-1.5"
                   >
                     <ShoppingCart className="w-4 h-4" /> Add to Cart
                   </button>
@@ -1838,11 +1729,11 @@ export default function App() {
 
       {/* User Dashboard View */}
       {currentView === 'user-dashboard' && (
-        <main className="max-w-4xl mx-auto px-4 py-8 w-full flex-grow space-y-6 text-left animate-fadeIn">
+        <main className="max-w-4xl mx-auto px-4 py-8 w-full flex-grow space-y-6 text-left">
           <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-rose-50 text-[#F41B5E] rounded-2xl flex items-center justify-center font-black text-lg">
-                {username ? username[0] : 'U'}
+                {username[0]}
               </div>
               <div>
                 <h2 className="text-xl font-black text-slate-900">{username}</h2>
@@ -1896,7 +1787,7 @@ export default function App() {
                       }
                       triggerAlert('Redeem Success! Discount code dispatched to registered mail.');
                     }}
-                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-300 ${
+                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
                       userPoints >= 200 ? 'bg-[#F41B5E] text-white hover:bg-rose-600 shadow-md' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
                   >
@@ -1967,16 +1858,6 @@ export default function App() {
             >
               <Users className="w-4 h-4" /> Client Database
             </button>
-            
-            <button
-              onClick={() => setAdminTab('statistics')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                adminTab === 'statistics' ? 'bg-[#1E202B] text-white shadow-md' : 'bg-white hover:bg-slate-50 text-slate-600 border'
-              }`}
-            >
-              <BarChart2 className="w-4 h-4" /> Statistics
-            </button>
-
             <button
               onClick={() => setAdminTab('categories')}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
@@ -2011,271 +1892,7 @@ export default function App() {
             </button>
           </div>
 
-          {}
-          {adminTab === 'statistics' && (
-            <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-6">
-              <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4 pb-4 border-b">
-                <div>
-                  <h3 className="text-base font-black text-slate-900 flex items-center gap-1.5">
-                    <TrendingUp className="w-5 h-5 text-[#F41B5E]" /> Platform Visitor & Performance Flow
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Deep analytical overview of incoming user requests, geolocation parameters, age brackets and generic retention rates.</p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 p-1.5 rounded-2xl border">
-                  {['today', 'yesterday', '3-days', '7-days', '15-days', '1-month', '3-months', '6-months', '1-year', 'custom'].map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => setStatsPeriod(p)}
-                      className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all ${
-                        statsPeriod === p ? 'bg-[#F41B5E] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'
-                      }`}
-                    >
-                      {p.replace('-', ' ')}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {statsPeriod === 'custom' && (
-                <div className="bg-[#FAF9FC] p-4 rounded-2xl border border-slate-200/60 max-w-lg flex flex-col sm:flex-row items-center gap-4 animate-slideDown">
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                    <Calendar className="w-4 h-4 text-slate-400" />
-                    <span>Start:</span>
-                    <input 
-                      type="date" 
-                      value={customStartDate} 
-                      onChange={(e) => setCustomStartDate(e.target.value)} 
-                      className="border rounded-lg p-1 text-slate-700 bg-white"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                    <Calendar className="w-4 h-4 text-slate-400" />
-                    <span>End:</span>
-                    <input 
-                      type="date" 
-                      value={customEndDate} 
-                      onChange={(e) => setCustomEndDate(e.target.value)} 
-                      className="border rounded-lg p-1 text-slate-700 bg-white"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 shadow-sm text-left">
-                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block mb-1">Total Period Traffic</span>
-                  <p className="text-2xl font-black text-slate-900">{computedStats.totalVisitors.toLocaleString()} Hits</p>
-                  <span className="text-[10px] text-emerald-500 font-bold block mt-1">↑ 14.8% from prev period</span>
-                </div>
-                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 shadow-sm text-left">
-                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block mb-1">Daily Average</span>
-                  <p className="text-2xl font-black text-[#F41B5E]">
-                    {Math.round(computedStats.totalVisitors / Math.max(1, computedStats.timeline.length)).toLocaleString()} / day
-                  </p>
-                  <span className="text-[10px] text-slate-400 font-bold block mt-1">Continuous stream</span>
-                </div>
-                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 shadow-sm text-left">
-                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block mb-1">Unique Devices</span>
-                  <p className="text-2xl font-black text-indigo-600">{Math.round(computedStats.totalVisitors * 0.72).toLocaleString()} IPs</p>
-                  <span className="text-[10px] text-indigo-400 font-bold block mt-1">72% returning buyers</span>
-                </div>
-                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 shadow-sm text-left">
-                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block mb-1">Average Search Match</span>
-                  <p className="text-2xl font-black text-emerald-600">88.4% Rate</p>
-                  <span className="text-[10px] text-emerald-500 font-bold block mt-1">High intent search matches</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-4">
-                
-                <div className="lg:col-span-2 bg-slate-50/30 p-5 rounded-3xl border border-slate-150">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Visitor Flow Timeline Curve ({statsPeriod.replace('-', ' ').toUpperCase()})</span>
-                    <span className="text-[9px] font-bold text-[#F41B5E] bg-rose-50 px-2 py-0.5 rounded-full">Sampled representation</span>
-                  </div>
-
-                  <div className="bg-white p-5 rounded-2xl border border-slate-200/50 relative h-64 flex flex-col justify-between">
-                    <svg className="w-full h-48 overflow-visible" viewBox="0 0 550 160" preserveAspectRatio="none">
-                      <line x1="0" y1="160" x2="550" y2="160" stroke="#F1F5F9" strokeWidth="1" />
-                      <line x1="0" y1="120" x2="550" y2="120" stroke="#F1F5F9" strokeWidth="1" strokeDasharray="3,3" />
-                      <line x1="0" y1="80" x2="550" y2="80" stroke="#F1F5F9" strokeWidth="1" strokeDasharray="3,3" />
-                      <line x1="0" y1="40" x2="550" y2="40" stroke="#F1F5F9" strokeWidth="1" strokeDasharray="3,3" />
-                      <line x1="0" y1="0" x2="550" y2="0" stroke="#F1F5F9" strokeWidth="1" />
-
-                      {sampledTimeline.map((item, idx) => {
-                        const totalPoints = sampledTimeline.length;
-                        const x = (idx / (totalPoints - 1 || 1)) * 510 + 20;
-                        const maxCount = Math.max(...sampledTimeline.map(t => t.count), 1);
-                        const barHeight = (item.count / maxCount) * 130;
-                        const y = 160 - barHeight;
-
-                        return (
-                          <g key={idx} className="cursor-pointer" onMouseEnter={() => setHoverChartIndex(idx)} onMouseLeave={() => setHoverChartIndex(null)}>
-                            <rect
-                              x={x - 10}
-                              y={0}
-                              width={20}
-                              height={160}
-                              fill={hoverChartIndex === idx ? "rgba(244, 27, 94, 0.04)" : "transparent"}
-                              rx="4"
-                            />
-                            <rect
-                              x={x - 4}
-                              y={y}
-                              width={8}
-                              height={barHeight}
-                              fill={hoverChartIndex === idx ? "#F41B5E" : "url(#barGrad)"}
-                              rx="4"
-                              className="transition-all duration-300"
-                            />
-                            <circle
-                              cx={x}
-                              cy={y}
-                              r={hoverChartIndex === idx ? "5" : "3.5"}
-                              fill="#FFF"
-                              stroke={hoverChartIndex === idx ? "#1E202B" : "#F41B5E"}
-                              strokeWidth="2.5"
-                              className="transition-all"
-                            />
-                          </g>
-                        );
-                      })}
-
-                      <path
-                        d={sampledTimeline.map((item, idx) => {
-                          const totalPoints = sampledTimeline.length;
-                          const x = (idx / (totalPoints - 1 || 1)) * 510 + 20;
-                          const maxCount = Math.max(...sampledTimeline.map(t => t.count), 1);
-                          const y = 160 - (item.count / maxCount) * 130;
-                          return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
-                        }).join(' ')}
-                        fill="none"
-                        stroke="#F41B5E"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="pointer-events-none"
-                      />
-
-                      <defs>
-                        <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#F41B5E" stopOpacity="0.85" />
-                          <stop offset="100%" stopColor="#818CF8" stopOpacity="0.2" />
-                        </linearGradient>
-                      </defs>
-                    </svg>
-
-                    <div className="w-full flex justify-between px-2 text-[8px] font-extrabold text-slate-400 border-t pt-1.5 uppercase">
-                      {sampledTimeline.map((item, idx) => {
-                        const totalPoints = sampledTimeline.length;
-                        const isEven = idx % 2 === 0;
-                        if (totalPoints > 8 && !isEven) return <span key={idx} className="w-4"></span>;
-                        return (
-                          <span key={idx} className={`text-center ${hoverChartIndex === idx ? 'text-[#F41B5E] scale-105 font-black' : ''}`}>
-                            {item.date}
-                          </span>
-                        );
-                      })}
-                    </div>
-
-                    {hoverChartIndex !== null && sampledTimeline[hoverChartIndex] && (
-                      <div className="absolute top-4 right-4 bg-[#1E202B] text-white p-3 rounded-xl shadow-lg border border-slate-700 max-w-[150px] animate-fadeIn text-left">
-                        <p className="text-[8px] font-black text-rose-400 uppercase tracking-wider">{sampledTimeline[hoverChartIndex].date}</p>
-                        <p className="text-sm font-black text-white mt-0.5">{sampledTimeline[hoverChartIndex].count.toLocaleString()} Visitors</p>
-                        <p className="text-[9px] text-slate-300 font-semibold mt-1">✓ Verified Sessions</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="lg:col-span-1 bg-slate-50/30 p-5 rounded-3xl border border-slate-150 flex flex-col justify-between">
-                  <div className="space-y-4">
-                    <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider block mb-1">Geographic Tractions</span>
-                    
-                    <div className="space-y-3.5">
-                      {computedStats.countries.map((c, i) => (
-                        <div key={i} className="space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span className="font-extrabold text-slate-700">{c.name}</span>
-                            <span className="text-slate-505 font-bold">{c.percentage}% ({c.count.toLocaleString()})</span>
-                          </div>
-                          <div className="w-full bg-slate-150 h-2.5 rounded-full overflow-hidden">
-                            <div className={`${c.color} h-full animate-pulse`} style={{ width: `${c.percentage}%` }}></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-4 mt-4 space-y-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Bangladeshi District Distribution:</span>
-                    {computedStats.districts.map((d, i) => (
-                      <div key={i} className="flex justify-between text-xs font-semibold text-slate-600">
-                        <span>{d.name} Division</span>
-                        <span>{d.count.toLocaleString()} hits</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                
-                <div className="bg-slate-50/30 p-5 rounded-3xl border border-slate-150">
-                  <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider block mb-4">Demographics: Age Groups</span>
-                  <div className="space-y-4">
-                    {computedStats.ageDemographics.map((age, i) => (
-                      <div key={i} className="space-y-1.5">
-                        <div className="flex justify-between text-xs font-extrabold">
-                          <span className="text-slate-700">Ages {age.range}</span>
-                          <span className="text-slate-505">{age.percentage}% ({age.count.toLocaleString()})</span>
-                        </div>
-                        <div className="w-full bg-slate-150 h-2 rounded-full overflow-hidden">
-                          <div className={`${age.color} h-full`} style={{ width: `${age.percentage}%` }}></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-slate-50/30 p-5 rounded-3xl border border-slate-150 flex flex-col justify-between">
-                  <div>
-                    <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider block mb-4">Demographics: Gender Division</span>
-                    
-                    <div className="flex items-center justify-around py-4 text-center">
-                      <div>
-                        <div className="text-3xl font-black text-indigo-500">{computedStats.gender.male}%</div>
-                        <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Male</span>
-                        <p className="text-[9px] text-slate-400 font-bold mt-1">({computedStats.gender.maleCount.toLocaleString()})</p>
-                      </div>
-                      <div className="border-r h-16 border-slate-200"></div>
-                      <div>
-                        <div className="text-3xl font-black text-[#F41B5E]">{computedStats.gender.female}%</div>
-                        <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Female</span>
-                        <p className="text-[9px] text-slate-400 font-bold mt-1">({computedStats.gender.femaleCount.toLocaleString()})</p>
-                      </div>
-                      <div className="border-r h-16 border-slate-200"></div>
-                      <div>
-                        <div className="text-3xl font-black text-amber-500">{computedStats.gender.other}%</div>
-                        <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Other</span>
-                        <p className="text-[9px] text-slate-400 font-bold mt-1">({computedStats.gender.otherCount.toLocaleString()})</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <div className="p-3 bg-rose-50/30 border border-rose-100 rounded-2xl text-center">
-                      <span className="text-[10px] font-black text-[#F41B5E] uppercase block">Platform Health Standard: Excellent</span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-            </div>
-          )}
-
+          {/* Client database section inside admin tab */}
           {adminTab === 'client-db' && (
             <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -2390,7 +2007,7 @@ export default function App() {
 
                         {expandedUserId === u.id && (
                           <tr>
-                            <td colSpan="7" className="p-4 bg-slate-50 border-t border-b text-slate-700 animate-slideDown">
+                            <td colSpan="7" className="p-4 bg-slate-50 border-t border-b text-slate-700">
                               <div className="space-y-3">
                                 <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Client Contributions Log History</h4>
                                 {u.activity?.details && u.activity.details.length > 0 ? (
@@ -2426,6 +2043,8 @@ export default function App() {
             </div>
           )}
 
+          {}
+          {/* Categories control tab */}
           {adminTab === 'categories' && (
             <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-6">
               <div className="flex justify-between items-center border-b pb-4">
@@ -2494,6 +2113,7 @@ export default function App() {
             </div>
           )}
 
+          {/* Brands control tab */}
           {adminTab === 'brands' && (
             <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-6">
               <div className="flex justify-between items-center border-b pb-4">
@@ -2514,7 +2134,7 @@ export default function App() {
                   <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest block">Proposed Brand Approvals Awaiting</span>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-left">
                     {pendingBrands.map(pb => (
-                      <div key={pb.id} className="bg-white p-3 rounded-xl border flex justify-between items-center animate-pulse">
+                      <div key={pb.id} className="bg-white p-3 rounded-xl border flex justify-between items-center">
                         <div className="flex items-center gap-2">
                           <img src={pb.logoUrl} alt="" className="w-8 h-8 rounded-full border object-cover" />
                           <p className="text-xs font-bold text-slate-800">{pb.name}</p>
@@ -2549,7 +2169,7 @@ export default function App() {
                     <div key={b.id} className="p-4 bg-slate-50 rounded-2xl border flex flex-col justify-between gap-3 text-left">
                       <div className="flex gap-3 justify-between items-start">
                         <div className="flex items-center gap-3">
-                          <img src={b.logoUrl} alt="" className="w-10 h-10 rounded-full border object-cover bg-white animate-fadeIn" />
+                          <img src={b.logoUrl} alt="" className="w-10 h-10 rounded-full border object-cover bg-white" />
                           <div>
                             <p className="font-black text-slate-800 text-sm">{b.name}</p>
                             <p className="text-[10px] text-slate-400 font-bold uppercase">{catParent ? catParent.name : 'Unassigned'}</p>
@@ -2601,6 +2221,7 @@ export default function App() {
             </div>
           )}
 
+          {/* Model Indexes control tab */}
           {adminTab === 'indexes' && (
             <div className="bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-6">
               <div className="flex justify-between items-center border-b pb-4">
@@ -2678,6 +2299,8 @@ export default function App() {
             </div>
           )}
 
+          {}
+          {/* Store CRUD section */}
           {adminTab === 'store-crud' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
               <div className="lg:col-span-1 bg-white border border-slate-150 p-6 rounded-3xl shadow-sm space-y-4">
@@ -2687,49 +2310,49 @@ export default function App() {
                 
                 <form onSubmit={handleAdminStoreProductUpload} className="space-y-3.5 text-xs">
                   <div className="space-y-1 font-semibold text-slate-600">
-                    <label className="font-bold text-slate-505 uppercase tracking-wide text-[10px]">Product Name</label>
+                    <label className="font-bold text-slate-500 uppercase tracking-wide text-[10px]">Product Name</label>
                     <input 
                       type="text" 
                       placeholder="e.g. Matte Glass Protector" 
                       value={storeNewName}
                       onChange={(e) => setStoreNewName(e.target.value)}
-                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl focus:outline-none focus:border-[#F41B5E] transition-colors"
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl"
                       required
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1 font-semibold text-slate-600">
-                      <label className="font-bold text-slate-505 uppercase tracking-wide text-[10px]">Price (৳ Taka)</label>
+                      <label className="font-bold text-slate-500 uppercase tracking-wide text-[10px]">Price (৳ Taka)</label>
                       <input 
                         type="number" 
                         placeholder="e.g. 500" 
                         value={storeNewPrice}
                         onChange={(e) => setStoreNewPrice(e.target.value)}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl font-mono focus:outline-none focus:border-[#F41B5E] transition-colors"
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl font-mono"
                         required
                       />
                     </div>
                     <div className="space-y-1 font-semibold text-slate-600">
-                      <label className="font-bold text-slate-505 uppercase tracking-wide text-[10px]">Points cost (🪙)</label>
+                      <label className="font-bold text-slate-500 uppercase tracking-wide text-[10px]">Points cost (🪙)</label>
                       <input 
                         type="number" 
                         placeholder="e.g. 70" 
                         value={storeNewPoints}
                         onChange={(e) => setStoreNewPoints(e.target.value)}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl font-mono focus:outline-none focus:border-[#F41B5E] transition-colors"
+                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl font-mono"
                         required
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5 font-semibold text-slate-600">
-                    <label className="font-bold text-slate-505 uppercase tracking-wide text-[10px] block">Product Image Upload</label>
+                    <label className="font-bold text-slate-500 uppercase tracking-wide text-[10px] block">Product Image Upload</label>
                     
                     <div className="bg-rose-50/50 border border-rose-100 p-3 rounded-2xl space-y-1">
                       <span className="text-[10px] font-black text-[#F41B5E] uppercase block tracking-wider">📐 Auto-Scaler Guidelines</span>
-                      <p className="text-[9px] text-slate-505 leading-snug">
-                        • Recommended: <strong className="text-slate-700">300 x 300 Pixels (1:1 Ratio)</strong>.<br />
+                      <p className="text-[9px] text-slate-500 leading-snug">
+                        • Recommened: <strong className="text-slate-700">300 x 300 Pixels (1:1 Ratio)</strong>.<br />
                         • Over-scaled items will be <strong className="text-[#F41B5E]">cropped and compressed automatically</strong> inside Canvas.
                       </p>
                     </div>
@@ -2737,7 +2360,7 @@ export default function App() {
                     <div className="flex items-center gap-3 mt-1.5">
                       <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-4 rounded-2xl cursor-pointer flex flex-col items-center justify-center transition-all">
                         <Upload className="w-5 h-5 text-slate-400 mb-1" />
-                        <span className="text-[10px] font-bold text-slate-505">Pick Store Image</span>
+                        <span className="text-[10px] font-bold text-slate-500">Pick Store Image</span>
                         <input 
                           type="file" 
                           accept="image/*" 
@@ -2781,7 +2404,7 @@ export default function App() {
                         <div>
                           <p className="text-xs font-black text-slate-800 truncate max-w-[140px]">{sp.name}</p>
                           <p className="text-[10px] text-slate-400">৳{sp.price} | 🪙{sp.pointsCost} Pts</p>
-                          <span className={`text-[8px] font-black uppercase mt-1 px-1 rounded inline-block ${sp.active !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-550'}`}>
+                          <span className={`text-[8px] font-black uppercase mt-1 px-1 rounded inline-block ${sp.active !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
                             {sp.active !== false ? 'Active' : 'Inactive'}
                           </span>
                         </div>
@@ -2828,82 +2451,80 @@ export default function App() {
             </div>
           )}
 
-          {adminTab !== 'statistics' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 text-left">
-              <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Traffic Geographic Locations</h3>
-                <div className="space-y-3.5">
-                  {computedStats.countries.map((c, i) => (
-                    <div key={i} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="font-bold text-slate-700">{c.name}</span>
-                        <span className="text-slate-550 font-bold">{c.percentage}% ({c.count})</span>
-                      </div>
-                      <div className="w-full bg-slate-150 h-2 rounded-full overflow-hidden">
-                        <div className="bg-[#F41B5E] h-full animate-pulse" style={{ width: `${c.percentage}%` }}></div>
-                      </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 text-left">
+            <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Traffic Geographic Locations</h3>
+              <div className="space-y-3.5">
+                {analyticsData.countries.map((c, i) => (
+                  <div key={i} className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-bold text-slate-700">{c.name}</span>
+                      <span className="text-slate-500 font-bold">{c.percentage}% ({c.count})</span>
                     </div>
-                  ))}
-                </div>
+                    <div className="w-full bg-slate-150 h-2 rounded-full overflow-hidden">
+                      <div className="bg-[#F41B5E] h-full" style={{ width: `${c.percentage}%` }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-                <div className="border-t pt-4 space-y-2">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Top Bangladeshi Districts:</span>
-                  {computedStats.districts.map((d, i) => (
-                    <div key={i} className="flex justify-between text-xs font-semibold text-slate-600">
-                      <span>{d.name} Division</span>
-                      <span>{d.count} hits</span>
+              <div className="border-t pt-4 space-y-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Top Bangladeshi Districts:</span>
+                {analyticsData.districts.map((d, i) => (
+                  <div key={i} className="flex justify-between text-xs font-semibold text-slate-600">
+                    <span>{d.name} District</span>
+                    <span>{d.count} hits</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Age Group Distributions</h3>
+              <div className="space-y-3.5">
+                {analyticsData.ageDemographics.map((age, i) => (
+                  <div key={i} className="space-y-1">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span className="text-slate-700">Ages {age.range}</span>
+                      <span className="text-slate-500">{age.percentage}%</span>
                     </div>
-                  ))}
+                    <div className="w-full bg-slate-150 h-2 rounded-full overflow-hidden">
+                      <div className="bg-indigo-600 h-full" style={{ width: `${age.percentage}%` }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Gender Breakdown Ratio</h3>
+              <div className="flex items-center justify-around h-32 pt-2 text-center">
+                <div>
+                  <div className="text-3xl font-black text-indigo-500">{analyticsData.gender.male}%</div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Male</span>
+                </div>
+                <div className="border-r h-16 border-slate-150"></div>
+                <div>
+                  <div className="text-3xl font-black text-pink-500">{analyticsData.gender.female}%</div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Female</span>
                 </div>
               </div>
 
-              <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Age Group Distributions</h3>
-                <div className="space-y-3.5">
-                  {computedStats.ageDemographics.map((age, i) => (
-                    <div key={i} className="space-y-1">
-                      <div className="flex justify-between text-xs font-semibold">
-                        <span className="text-slate-700">Ages {age.range}</span>
-                        <span className="text-slate-550">{age.percentage}%</span>
-                      </div>
-                      <div className="w-full bg-slate-150 h-2 rounded-full overflow-hidden">
-                        <div className="bg-indigo-600 h-full" style={{ width: `${age.percentage}%` }}></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-150 p-5 rounded-3xl shadow-sm space-y-4">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Gender Breakdown Ratio</h3>
-                <div className="flex items-center justify-around h-32 pt-2 text-center">
+              <div className="border-t pt-4">
+                <div className="p-3.5 bg-rose-50/20 border border-rose-100 rounded-2xl flex items-center justify-between">
                   <div>
-                    <div className="text-3xl font-black text-indigo-500">{computedStats.gender.male}%</div>
-                    <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Male</span>
+                    <span className="text-xs font-black text-slate-800">Global Tractions</span>
+                    <span className="text-[10px] font-bold text-slate-400 block mt-0.5">Updated every 5 minutes</span>
                   </div>
-                  <div className="border-r h-16 border-slate-155"></div>
-                  <div>
-                    <div className="text-3xl font-black text-pink-500">{computedStats.gender.female}%</div>
-                    <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Female</span>
-                  </div>
-                </div>
-
-                <div className="border-t pt-4">
-                  <div className="p-3.5 bg-rose-50/20 border border-rose-100 rounded-2xl flex items-center justify-between animate-fadeIn">
-                    <div>
-                      <span className="text-xs font-black text-slate-800">Global Tractions</span>
-                      <span className="text-[10px] font-bold text-slate-400 block mt-0.5">Updated every 5 minutes</span>
-                    </div>
-                    <span className="text-xs font-black text-[#F41B5E]">+{computedStats.totalVisitors} Hits</span>
-                  </div>
+                  <span className="text-xs font-black text-[#F41B5E]">+{analyticsData.totalVisitors} Hits</span>
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </main>
       )}
 
-      {/* Cart Slider */}
+      {}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-end">
           <div className="bg-white w-full max-w-md h-full shadow-2xl p-6 flex flex-col justify-between overflow-y-auto animate-slideIn">
@@ -2925,7 +2546,7 @@ export default function App() {
               ) : (
                 <div className="space-y-4">
                   {cart.map(item => (
-                    <div key={item.id} className="flex gap-3 items-center border-b pb-3 border-slate-100 text-left animate-fadeIn">
+                    <div key={item.id} className="flex gap-3 items-center border-b pb-3 border-slate-100 text-left">
                       <img src={item.image} alt="" className="w-12 h-12 rounded-xl object-cover border" />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-slate-800 truncate leading-snug">{item.name}</p>
@@ -2956,7 +2577,7 @@ export default function App() {
                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Checkout Specifications</span>
                 
                 <div className="space-y-1 font-semibold text-slate-600">
-                  <label className="text-[10px] uppercase font-bold text-slate-505">Recipient Name</label>
+                  <label className="text-[10px] uppercase font-bold text-slate-500">Recipient Name</label>
                   <input
                     type="text"
                     value={checkoutForm.name}
@@ -2968,7 +2589,7 @@ export default function App() {
                 </div>
 
                 <div className="space-y-1 font-semibold text-slate-600">
-                  <label className="text-[10px] uppercase font-bold text-slate-505">Delivery Address</label>
+                  <label className="text-[10px] uppercase font-bold text-slate-500">Delivery Address</label>
                   <input
                     type="text"
                     value={checkoutForm.address}
@@ -2980,7 +2601,7 @@ export default function App() {
                 </div>
 
                 <div className="space-y-1 font-semibold text-slate-600">
-                  <label className="text-[10px] uppercase font-bold text-slate-505">Phone Number (Bangladeshi 11 Digits)</label>
+                  <label className="text-[10px] uppercase font-bold text-slate-500">Phone Number (Bangladeshi 11 Digits)</label>
                   <input
                     type="text"
                     value={checkoutForm.phone}
@@ -2992,9 +2613,9 @@ export default function App() {
                 </div>
 
                 <div className="space-y-1.5 font-semibold text-slate-600">
-                  <label className="text-[10px] uppercase font-bold text-slate-505 block">Payment Option</label>
+                  <label className="text-[10px] uppercase font-bold text-slate-500 block">Payment Option</label>
                   <div className="grid grid-cols-3 gap-2">
-                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50 transition-colors">
+                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50">
                       <input 
                         type="radio" 
                         name="payment" 
@@ -3005,7 +2626,7 @@ export default function App() {
                       />
                       COD
                     </label>
-                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50 transition-colors">
+                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50">
                       <input 
                         type="radio" 
                         name="payment" 
@@ -3016,7 +2637,7 @@ export default function App() {
                       />
                       Points
                     </label>
-                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50 transition-colors">
+                    <label className="flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer text-[10px] font-bold text-center bg-white hover:bg-slate-50">
                       <input 
                         type="radio" 
                         name="payment" 
@@ -3043,7 +2664,6 @@ export default function App() {
         </div>
       )}
 
-      {}
       {activeProduct && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-100 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative animate-fadeIn max-h-[90vh] overflow-y-auto">
@@ -3060,14 +2680,14 @@ export default function App() {
                     <img src={brands.find(b => b.id === activeProduct.brandId).logoUrl} alt="" className="w-8 h-8 rounded-full object-cover border" />
                   </div>
                 )}
-                <button onClick={() => setActiveProduct(null)} className="p-1 bg-white hover:bg-slate-100 border rounded-full text-slate-400 transition-colors">
+                <button onClick={() => setActiveProduct(null)} className="p-1 bg-white hover:bg-slate-100 border rounded-full text-slate-400">
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
             <div className="p-6 space-y-6 text-left">
-              <div className="flex flex-col sm:flex-row gap-4 bg-rose-50/30 p-4 rounded-2xl border border-rose-100 animate-fadeIn">
+              <div className="flex flex-col sm:flex-row gap-4 bg-rose-50/30 p-4 rounded-2xl border border-rose-100">
                 <div className="bg-white p-3 rounded-xl text-center border shadow-sm shrink-0 w-full sm:w-auto">
                   <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block">FAULT SCALE</span>
                   <span className="text-2xl font-black text-[#F41B5E]">-{activeProduct.faultScore}%</span>
@@ -3075,51 +2695,22 @@ export default function App() {
                 <p className="text-xs text-slate-600 italic leading-relaxed font-semibold">"{activeProduct.description}"</p>
               </div>
 
-              <div className="space-y-3 text-left">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Fault Index Progression Line Curve</span>
-                  <span className="text-[9px] text-rose-500 font-bold bg-rose-50 px-2 py-0.5 rounded-md flex items-center gap-1">
-                    <Info className="w-3 h-3" /> Click on points to inspect
-                  </span>
-                </div>
-                <div className="bg-[#FAF9FC] border border-slate-200/60 p-6 rounded-3xl relative h-48 flex items-end">
-                  <svg className="absolute inset-0 h-full w-full p-6 overflow-visible" viewBox="0 0 400 100" preserveAspectRatio="none">
-                    <line x1="0" y1="100" x2="400" y2="100" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3,3" />
-                    <line x1="0" y1="50" x2="400" y2="50" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3,3" />
-                    <line x1="0" y1="0" x2="400" y2="0" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3,3" />
-                    
+              <div className="space-y-2 text-left">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Fault Index Progression Line Curve</span>
+                <div className="bg-[#FAF9FC] border p-4 rounded-3xl h-44 relative flex items-end">
+                  <svg className="absolute inset-0 h-full w-full p-4" viewBox="0 0 100 100" preserveAspectRatio="none">
                     <path
-                      d={`M 0,${100 - activeProduct.timeline[0]} C 100,${100 - activeProduct.timeline[1]} 200,${100 - activeProduct.timeline[2]} 300,${100 - activeProduct.timeline[3]} 400,${100 - activeProduct.timeline[4]}`}
+                      d={`M 0,${100 - activeProduct.timeline[0]} L 25,${100 - activeProduct.timeline[1]} L 50,${100 - activeProduct.timeline[2]} L 75,${100 - activeProduct.timeline[3]} L 100,${100 - activeProduct.timeline[4]}`}
                       fill="none"
                       stroke="#F41B5E"
                       strokeWidth="3.5"
-                      className="animate-drawCurve"
                     />
-                    
-                    {activeProduct.timeline.map((val, idx) => {
-                      const cx = idx * 100;
-                      const cy = 100 - val;
-                      return (
-                        <g key={idx} className="cursor-pointer" onMouseEnter={() => setHoverTimelineIndex(idx)} onMouseLeave={() => setHoverTimelineIndex(null)}>
-                          <circle
-                            cx={cx}
-                            cy={cy}
-                            r={hoverTimelineIndex === idx ? "8" : "6"}
-                            fill="#F41B5E"
-                            stroke="#FFFFFF"
-                            strokeWidth="2.5"
-                            className="transition-all duration-200 hover:scale-125"
-                          />
-                        </g>
-                      );
-                    })}
                   </svg>
-                  
-                  <div className="relative z-10 w-full flex justify-between px-2">
+                  <div className="relative z-10 w-full flex justify-between">
                     {activeProduct.timeline.map((val, idx) => (
-                      <div key={idx} className={`text-center p-1 rounded-xl transition-all ${hoverTimelineIndex === idx ? 'bg-rose-50 scale-105' : ''}`}>
+                      <div key={idx} className="text-center">
                         <span className="text-xs font-black text-[#F41B5E] block">{val}%</span>
-                        <span className="text-[9px] text-slate-400 font-bold block">{['Init', '3 Months', '6 Months', '1 Year', '2 Years'][idx]}</span>
+                        <span className="text-[9px] text-slate-400 font-bold block">{['Init', '3m', '6m', '12m', '24m'][idx]}</span>
                       </div>
                     ))}
                   </div>
@@ -3137,7 +2728,7 @@ export default function App() {
                       </div>
                       <button
                         onClick={() => upvoteFault(activeProduct.id, f.id)}
-                        className="bg-[#F41B5E] text-white px-3.5 py-1.5 rounded-xl font-bold text-xs hover:bg-rose-600 transition-colors"
+                        className="bg-[#F41B5E] text-white px-3 py-1.5 rounded-xl font-bold text-xs"
                       >
                         I Face This Too
                       </button>
@@ -3149,7 +2740,7 @@ export default function App() {
               {suggestedAlternative ? (
                 <div className="bg-emerald-50/60 border border-emerald-100 p-4 rounded-2xl space-y-3">
                   <div className="flex items-center gap-2 text-emerald-800">
-                    <Sparkles className="w-5 h-5 text-emerald-600 animate-pulse" />
+                    <Sparkles className="w-5 h-5 text-emerald-600 animate-spin" />
                     <span className="text-xs font-black uppercase tracking-wider">Recommended Better Alternative</span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-3 rounded-xl border shadow-sm">
@@ -3162,9 +2753,9 @@ export default function App() {
                       href={suggestedAlternative.affiliateLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-sm"
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs px-3 py-2 rounded-xl transition-colors inline-flex items-center gap-1.5"
                     >
-                      Buy Alternative <ChevronRight className="w-3.5 h-3.5" />
+                      Buy Alternative <ArrowRight className="w-3.5 h-3.5" />
                     </a>
                   </div>
                 </div>
@@ -3177,7 +2768,7 @@ export default function App() {
             </div>
 
             <div className="p-4 bg-slate-50 border-t flex justify-end">
-              <button onClick={() => setActiveProduct(null)} className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-xs px-5 py-2.5 rounded-xl transition-all">
+              <button onClick={() => setActiveProduct(null)} className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-xs px-5 py-2 rounded-xl transition-all">
                 Close Insights
               </button>
             </div>
@@ -3200,7 +2791,7 @@ export default function App() {
                 value={newCatName} 
                 onChange={(e) => setNewCatName(e.target.value)} 
                 placeholder="e.g. Smart Watches, Graphics Cards" 
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none focus:border-[#F41B5E]" 
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
                 required 
               />
             </div>
@@ -3224,7 +2815,7 @@ export default function App() {
                 type="text" 
                 value={editingCategory.name} 
                 onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })} 
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" 
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
                 required 
               />
             </div>
@@ -3247,7 +2838,7 @@ export default function App() {
               <select 
                 value={brandTargetCat} 
                 onChange={(e) => setBrandTargetCat(e.target.value)} 
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" 
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
                 required
               >
                 <option value="">Select Category Parent</option>
@@ -3262,7 +2853,7 @@ export default function App() {
                 value={brandName}
                 onChange={(e) => setBrandName(e.target.value)}
                 placeholder="Nokia, Apple, Cat VPN etc"
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none focus:border-[#F41B5E]"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                 required
               />
             </div>
@@ -3276,9 +2867,9 @@ export default function App() {
               </div>
               
               <div className="flex items-center gap-3 mt-2">
-                <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-4 rounded-xl cursor-pointer flex flex-col items-center justify-center transition-all">
+                <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-4 rounded-xl cursor-pointer flex flex-col items-center justify-center">
                   <Upload className="w-5 h-5 text-slate-400 mb-1" />
-                  <span className="text-[10px] font-bold text-slate-505">Select Local File</span>
+                  <span className="text-[10px] font-bold text-slate-500">Select Local File</span>
                   <input 
                     type="file" 
                     accept="image/*" 
@@ -3307,7 +2898,54 @@ export default function App() {
         </div>
       )}
 
-      {}
+      {editingBrand && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={saveBrandEdit} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left animate-fadeIn">
+            <h3 className="text-lg font-black text-slate-900">Edit Brand Metadata</h3>
+            
+            <div className="space-y-1 font-semibold text-slate-600">
+              <label className="text-xs text-slate-400 font-bold uppercase block">Category Parent</label>
+              <select 
+                value={editingBrand.categoryId} 
+                onChange={(e) => setEditingBrand({ ...editingBrand, categoryId: e.target.value })} 
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
+                required
+              >
+                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+
+            <div className="space-y-1 font-semibold text-slate-600">
+              <label className="text-xs text-slate-400 uppercase font-black block">Brand Name</label>
+              <input
+                type="text"
+                value={editingBrand.name}
+                onChange={(e) => setEditingBrand({ ...editingBrand, name: e.target.value })}
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                required
+              />
+            </div>
+
+            <div className="space-y-1 font-semibold text-slate-600">
+              <label className="text-xs text-slate-400 uppercase font-black block">Logo URL</label>
+              <input
+                type="text"
+                value={editingBrand.logoUrl}
+                onChange={(e) => setEditingBrand({ ...editingBrand, logoUrl: e.target.value })}
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                required
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 text-xs">
+              <button type="button" onClick={() => setEditingBrand(null)} className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl font-bold">Cancel</button>
+              <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold">Save adjustments</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Model Index form */}
       {showProductForm && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={handleProductUpload} className="bg-white border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-xl text-left animate-fadeIn">
@@ -3322,7 +2960,7 @@ export default function App() {
                 <select 
                   value={prodCatId} 
                   onChange={(e) => setProdCatId(e.target.value)} 
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" 
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
                   required
                 >
                   <option value="">Select Category</option>
@@ -3335,7 +2973,7 @@ export default function App() {
                 <select 
                   value={prodBrandId} 
                   onChange={(e) => setProdBrandId(e.target.value)} 
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" 
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
                   required
                 >
                   <option value="">Select Brand</option>
@@ -3351,7 +2989,7 @@ export default function App() {
                 value={prodName}
                 onChange={(e) => setProdName(e.target.value)}
                 placeholder="e.g. Galaxy Fold 5"
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none focus:border-[#F41B5E]"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                 required
               />
             </div>
@@ -3362,7 +3000,7 @@ export default function App() {
                 value={prodDesc}
                 onChange={(e) => setProdDesc(e.target.value)}
                 placeholder="Briefly state the primary real-life defect found on this model."
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none focus:border-[#F41B5E]"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                 rows="2"
               />
             </div>
@@ -3376,9 +3014,9 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-3 mt-1">
-                <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-3 rounded-xl cursor-pointer flex flex-col items-center justify-center transition-all">
+                <label className="flex-1 border-2 border-dashed border-slate-200 hover:bg-slate-50 p-3 rounded-xl cursor-pointer flex flex-col items-center justify-center">
                   <Upload className="w-4 h-4 text-slate-400 mb-1" />
-                  <span className="text-[9px] font-bold text-slate-505">Pick Photo</span>
+                  <span className="text-[9px] font-bold text-slate-500">Pick Photo</span>
                   <input 
                     type="file" 
                     accept="image/*" 
@@ -3418,7 +3056,7 @@ export default function App() {
                 <select 
                   value={editingProduct.categoryId} 
                   onChange={(e) => setEditingProduct({ ...editingProduct, categoryId: e.target.value })} 
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" 
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
                 >
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
@@ -3429,7 +3067,7 @@ export default function App() {
                 <select 
                   value={editingProduct.brandId} 
                   onChange={(e) => setEditingProduct({ ...editingProduct, brandId: e.target.value })} 
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" 
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" 
                 >
                   {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
@@ -3442,7 +3080,7 @@ export default function App() {
                 type="text"
                 value={editingProduct.modelName}
                 onChange={(e) => setEditingProduct({ ...editingProduct, modelName: e.target.value })}
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                 required
               />
             </div>
@@ -3453,7 +3091,7 @@ export default function App() {
                 type="number"
                 value={editingProduct.faultScore}
                 onChange={(e) => setEditingProduct({ ...editingProduct, faultScore: parseInt(e.target.value) || 0 })}
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs font-mono focus:outline-none"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs font-mono"
                 required
               />
             </div>
@@ -3464,7 +3102,7 @@ export default function App() {
                 type="text"
                 value={editingProduct.imageUrl}
                 onChange={(e) => setEditingProduct({ ...editingProduct, imageUrl: e.target.value })}
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
               />
             </div>
 
@@ -3473,7 +3111,7 @@ export default function App() {
               <textarea
                 value={editingProduct.description}
                 onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs animate-fadeIn"
                 rows="2"
               />
             </div>
@@ -3498,7 +3136,7 @@ export default function App() {
                 type="text"
                 value={editingStoreProduct.name}
                 onChange={(e) => setEditingStoreProduct({ ...editingStoreProduct, name: e.target.value })}
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                 required
               />
             </div>
@@ -3510,7 +3148,7 @@ export default function App() {
                   type="number"
                   value={editingStoreProduct.price}
                   onChange={(e) => setEditingStoreProduct({ ...editingStoreProduct, price: parseInt(e.target.value) || 0 })}
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs font-mono focus:outline-none"
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs font-mono"
                   required
                 />
               </div>
@@ -3521,7 +3159,7 @@ export default function App() {
                   type="number"
                   value={editingStoreProduct.pointsCost}
                   onChange={(e) => setEditingStoreProduct({ ...editingStoreProduct, pointsCost: parseInt(e.target.value) || 0 })}
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs font-mono focus:outline-none"
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs font-mono"
                   required
                 />
               </div>
@@ -3533,7 +3171,7 @@ export default function App() {
                 type="text"
                 value={editingStoreProduct.image}
                 onChange={(e) => setEditingStoreProduct({ ...editingStoreProduct, image: e.target.value })}
-                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
+                className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                 required
               />
             </div>
@@ -3554,7 +3192,7 @@ export default function App() {
             
             <div className="space-y-1 font-semibold text-slate-600">
               <label className="text-xs text-slate-400 uppercase font-black block">Choose Product Model</label>
-              <select value={probProduct} onChange={(e) => setProbProduct(e.target.value)} className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" required>
+              <select value={probProduct} onChange={(e) => setProbProduct(e.target.value)} className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" required>
                 <option value="">Choose Model</option>
                 {activeProducts.map(p => <option key={p.id} value={p.id}>{p.modelName}</option>)}
               </select>
@@ -3562,7 +3200,7 @@ export default function App() {
 
             <div className="space-y-1 font-semibold text-slate-600">
               <label className="text-xs text-slate-400 uppercase font-black block">Observed Bug / Issue</label>
-              <select value={probText} onChange={(e) => setProbText(e.target.value)} className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none" required>
+              <select value={probText} onChange={(e) => setProbText(e.target.value)} className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs" required>
                 <option value="Battery Degradation & Fast Draining">Battery Degradation & Fast Draining</option>
                 <option value="UI Slowdown / Stutter Lags">UI Slowdown / Stutter Lags</option>
                 <option value="Overheating Under Moderate Load">Overheating Under Moderate Load</option>
@@ -3579,7 +3217,7 @@ export default function App() {
                   value={customProbText}
                   onChange={(e) => setCustomProbText(e.target.value)}
                   placeholder="e.g. Loose charging port connector"
-                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none focus:border-[#F41B5E]"
+                  className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
                   required
                 />
               </div>
@@ -3602,86 +3240,82 @@ export default function App() {
               <button onClick={() => setAuthTab('register')} className={`flex-1 py-4 text-center text-xs font-black uppercase tracking-wider ${authTab === 'register' ? 'border-b-2 border-[#F41B5E] text-[#F41B5E]' : 'text-slate-400'}`}>Register</button>
             </div>
 
-            <form onSubmit={handleAuthSubmit} className="p-6 space-y-4">
-                {authTab === 'login' ? (
-                  <>
-                    <div className="space-y-1">
-                      <label className="text-xs text-slate-400 font-bold uppercase">Email Address</label>
-                      <input
-                        type="email"
-                        placeholder="e.g. name@gmail.com"
-                        value={checkoutForm.name}
-                        onChange={(e) => setCheckoutForm({ ...checkoutForm, name: e.target.value })}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-slate-400 font-bold uppercase">Password</label>
-                      <input
-                        type="password"
-                        placeholder="••••••••"
-                        value={authPassword}
-                        onChange={(e) => setAuthPassword(e.target.value)}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
-                        required
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="space-y-1">
-                      <label className="text-xs text-slate-400 font-bold uppercase">Full Name</label>
-                      <input
-                        type="text"
-                        placeholder="John Doe"
-                        value={regFullName}
-                        onChange={(e) => setRegFullName(e.target.value)}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-slate-400 font-bold uppercase">Email Address</label>
-                      <input
-                        type="email"
-                        placeholder="yourname@gmail.com"
-                        value={regEmail}
-                        onChange={(e) => setRegEmail(e.target.value)}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-slate-400 font-bold uppercase">Home Country</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Bangladesh"
-                        value={regCountry}
-                        onChange={(e) => setRegCountry(e.target.value)}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-slate-400 font-bold uppercase">Set Password</label>
-                      <input
-                        type="password"
-                        placeholder="••••••••"
-                        value={authPassword}
-                        onChange={(e) => setAuthPassword(e.target.value)}
-                        className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs focus:outline-none"
-                        required
-                      />
-                    </div>
-                  </>
-                )}
+            <form onSubmit={handleAuthSubmit} className="p-6 space-y-4 font-semibold text-slate-600">
+              {authTab === 'login' ? (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-400 font-bold uppercase">Email Address / Username</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. rashedul@gmail.com"
+                      value={checkoutForm.email}
+                      onChange={(e) => setCheckoutForm({ ...checkoutForm, email: e.target.value })}
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-400 font-bold uppercase">Password</label>
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                      required
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-400 font-bold uppercase">Full Name</label>
+                    <input
+                      type="text"
+                      placeholder="Tanzim Rahman"
+                      value={checkoutForm.name}
+                      onChange={(e) => setCheckoutForm({ ...checkoutForm, name: e.target.value })}
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-400 font-bold uppercase">Email Address</label>
+                    <input
+                      type="email"
+                      placeholder="tanzim@hotmail.com"
+                      value={checkoutForm.email}
+                      onChange={(e) => setCheckoutForm({ ...checkoutForm, email: e.target.value })}
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-400 font-bold uppercase">Bangladeshi Phone Number</label>
+                    <input
+                      type="text"
+                      placeholder="01XXXXXXXXX"
+                      value={checkoutForm.phone}
+                      onChange={(e) => setCheckoutForm({ ...checkoutForm, phone: e.target.value })}
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs font-mono"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-400 font-bold uppercase">Password</label>
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      className="w-full bg-[#FAF9FC] border p-2.5 rounded-xl text-xs"
+                      required
+                    />
+                  </div>
+                </>
+              )}
 
-                <div className="flex gap-2 pt-2">
-                  <button type="button" onClick={() => setShowAuthModal(false)} className="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-xl text-xs font-bold text-center">Cancel</button>
-                  <button type="submit" className="flex-1 bg-[#F41B5E] text-white py-2.5 rounded-xl text-xs font-bold text-center shadow-md shadow-rose-200">{authTab === 'login' ? 'Sign In' : 'Register'}</button>
-                </div>
-              </form>
+              <div className="flex gap-2 pt-2 text-xs">
+                <button type="button" onClick={() => setShowAuthModal(false)} className="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold text-center">Cancel</button>
+                <button type="submit" className="flex-1 bg-[#F41B5E] text-white py-2.5 rounded-xl font-bold text-center shadow-md shadow-rose-200">{authTab === 'login' ? 'Sign In' : 'Register'}</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -3705,7 +3339,7 @@ export default function App() {
           </div>
 
           <div className="space-y-3">
-            <h3 className="text-xs uppercase tracking-widest text-white font-black">Top Categories</h3>
+            <h3 className="text-xs uppercase tracking-widest text-white font-black">Top Products</h3>
             <ul className="space-y-2 text-xs font-bold">
               <li><button onClick={() => { setSelectedCategory('cat-1'); setCurrentView('index'); }} className="hover:text-white transition-colors">Smartphones</button></li>
               <li><button onClick={() => { setSelectedCategory('cat-2'); setCurrentView('index'); }} className="hover:text-white transition-colors">Software & VPN Lag</button></li>
