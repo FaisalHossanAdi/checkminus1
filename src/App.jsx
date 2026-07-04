@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { supabase } from './supabaseClient';
 import { 
   ShieldCheck, 
   Plus, 
